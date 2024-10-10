@@ -1,4 +1,11 @@
-use clap::{Parser, Subcommand};
+// mod cli;
+mod core;
+mod create_table;
+
+use env_logger;
+// use log::{debug, error, log_enabled, info, Level};
+use clap::{Parser, Subcommand, Args};
+use camino::Utf8PathBuf;
 
 #[derive(Debug, Parser)]
 #[clap(
@@ -15,14 +22,23 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum SubCommands {
-    Create
+    Create {
+        path: Utf8PathBuf,
+    },
+}
+
+#[derive(Debug, Args)]
+struct CreateArgs {
+    path: Utf8PathBuf,
 }
 
 fn main() {
+    env_logger::init();
     let cli = Cli::parse();
 
     match cli.subcommand {
-        SubCommands::Create => {
+        SubCommands::Create{ path } => {
+            let _ = create_table::create_table(path);
         },
     }
 }
