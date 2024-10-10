@@ -38,7 +38,11 @@ fn main() {
 
     match cli.subcommand {
         SubCommands::Create{ path } => {
-            let _ = create_table::create_table(path);
+            let result = create_table::create_table(path);
+            match result {
+                Ok(_) => log::info!("Success to create the type stack tables"),
+                Err(err) => log::error!("Fialed to create the type stack table, {}", err)
+            }
         },
     }
 }
