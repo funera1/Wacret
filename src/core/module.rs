@@ -4,25 +4,28 @@ use wasmparser::{FunctionBody, FuncType, GlobalType, BlockType, ValType};
 
 use crate::core::function::{Function, CodePos, valtype_to_size};
 
+pub struct Fn<'a> {
+    pub fidx: u32,
+    pub body: Option<FunctionBody<'a>>,
+}
+
 pub struct Module<'a> {
-    pub bodies: Vec<Option<FunctionBody<'a>>>,
     pub types: Vec<FuncType>,
-    pub funcs: Vec<u32>,
+    pub funcs: Vec<Fn<'a>>,
     pub globals: Vec<GlobalType>,
 }
 
 impl<'a> Module<'a> {
-    pub fn new(bodies: Vec<Option<FunctionBody<'a>>>, types: Vec<FuncType>, funcs: Vec<u32>, globals: Vec<GlobalType>) -> Self {
+    pub fn new(types: Vec<FuncType>, funcs: Vec<Fn<'a>>, globals: Vec<GlobalType>) -> Self {
         Self {
-            bodies,
             types,
             funcs,
-            globals
+            globals,
         }
     }
 
     pub fn get_type_by_func(&self, func_idx: u32) -> &FuncType {
-        return &self.types[self.funcs[func_idx as usize] as usize];
+        return &self.types[self.funcs[func_idx as usize].fidx as usize];
     }
 
     pub fn get_type_by_type(&self, type_idx: u32) -> &FuncType {
@@ -37,18 +40,22 @@ impl<'a> Module<'a> {
         let mut ret = vec![];
 
         for i in 0..self.funcs.len() as u32 {
-            let body = &self.bodies[i as usize];
+            let body = &self.funcs[i as usize].body;
             match body {
                 Some(body) => {
                     let else_blockty = BlockType::Empty;
                     let locals = self.get_locals(i)?;
+                    log::debug!("local size in {}th function: {}", i, locals.to_vec().len());
 
                     let v: Vec<CodePos<'_>> = vec![];
                     let mut f = Function::new(&self, &body, locals.to_vec(), else_blockty, v.to_vec());
                     let _ = f.construct()?;
                     ret.push(f);
                 }
-                None => continue,
+                None => {
+                    log::debug!("{}th function is import_function", i);
+                    continue;
+                },
             };
         }
         return Ok(ret);
@@ -66,7 +73,8 @@ impl<'a> Module<'a> {
         }
 
         // ローカルをpush
-        let body = &self.bodies[fidx as usize];
+        let body = &self.funcs[fidx as usize].body;
+        // let body = &self.bodies[fidx as usize];
         match body {
             Some(b) => {
                 let locals_iter = b.get_locals_reader()?.into_iter();
@@ -87,7 +95,7 @@ impl<'a> Module<'a> {
 
 pub fn new_module(buf: &Vec<u8>) -> Result<Module> {
     let mut globals: Vec<GlobalType> = Vec::new();
-    let mut codes: Vec<Option<FunctionBody>> = Vec::new();
+    let mut codes: Vec<FunctionBody> = Vec::new();
     let mut types: Vec<FuncType> = Vec::new();
     let mut bytecode_funcs: Vec<u32> = Vec::new();
     let mut import_funcs: Vec<u32> = Vec::new();
@@ -135,10 +143,7 @@ pub fn new_module(buf: &Vec<u8>) -> Result<Module> {
                 }
             }
             Payload::CodeSectionEntry(body) => {
-                for _ in 0..import_funcs.len() {
-                    codes.push(None);
-                }
-                codes.push(Some(body));
+                codes.push(body);
             }
             _other => {
             }
@@ -146,15 +151,16 @@ pub fn new_module(buf: &Vec<u8>) -> Result<Module> {
     }
 
     // import関数とbytecode関数をマージ
-    let mut funcs: Vec<u32> = Vec::new();
+    let mut funcs: Vec<Fn<'_>> = Vec::new();
     for func_idx in 0..import_funcs.len() {
         let type_idx = import_funcs[func_idx];
-        funcs.push(type_idx);
+        funcs.push(Fn{fidx: type_idx, body: None});
     }
-    for func_idx in 0..funcs.len() {
-        let type_idx = funcs[func_idx];
-        funcs.push(type_idx);
+    for func_idx in 0..bytecode_funcs.len() {
+        let type_idx = bytecode_funcs[func_idx];
+        // TODO: cloneしているが、本当にそれしかないのか?
+        funcs.push(Fn{fidx: type_idx, body: Some(codes[func_idx].clone())});
     }
 
-    return Ok(Module::new(codes, types, funcs, globals));
+    return Ok(Module::new(types, funcs, globals));
 }

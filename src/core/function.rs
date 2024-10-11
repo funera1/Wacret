@@ -46,7 +46,7 @@ impl<'a> Function<'a> {
 
             let result = self.dispatch(&mut type_stack, &op);
             if result.is_err() {
-                println!("[ERROR]{:?}", result.err());
+                log::error!("[ERROR]{:?}", result.err());
             }
 
             let mut callee_return_size: u32 = 0;
@@ -137,7 +137,8 @@ impl<'a> Function<'a> {
                     println!("{vi}")
                 }
                 if v.len() != 0 {
-                    println!("Error: returnの処理が間違えている");
+                    // TODO: error型を返す
+                    log::error!("Error: returnの処理が間違えている");
                     std::process::exit(0);
                 }
             }

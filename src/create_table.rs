@@ -16,6 +16,7 @@ pub fn create_table(path: Utf8PathBuf) -> Result<()> {
 
     // コードから各セクションの情報を抽出
     let m = module::new_module(&buf)?;
+    log::debug!("function size is {}", m.funcs.len());
 
     // 型スタックを生成
     let funcs = m.parse()?;
