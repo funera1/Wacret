@@ -38,13 +38,17 @@ pub fn calc_tablemap(funcs: &Vec<Function>) -> (Vec<u32>, Vec<Vec<u32>>) {
     let mut tablemap_func: Vec<u32> = vec![];
     let mut tablemap_offset: Vec<Vec<u32>> = vec![];
 
+    let mut tablemap_offset_addr = 0;
+
     for func in funcs {
         match func {
             Function::ImportFunction(_) => {
                 tablemap_func.push(0);
             }
             Function::BytecodeFunction(f) => {
-                tablemap_func.push(calc_tablefunc(&f));
+                tablemap_func.push(tablemap_offset_addr);
+                tablemap_offset_addr += calc_tablefunc(&f);
+
                 tablemap_offset.push(calc_tableoffset(&f));
             }
         }
@@ -61,12 +65,14 @@ fn calc_tablefunc(func: &BytecodeFunction) -> u32 {
     //      - offset  (u32)
     //      - address (u64)
     let local_len = func.locals.len() as u32;
-    let codes_len = func.codes.len() as u32;
+    let codes_len = func.codes.len() as u32 + 1; // codeの一番初め、offset=0のときを考慮するために+1
+    log::debug!("local: {}, codes: {}", local_len, codes_len);
     return BYTE_U32 + (local_len * BYTE_U8) + (codes_len * (BYTE_U32 + BYTE_U64));
 }
 
 fn calc_tableoffset(func: &BytecodeFunction) -> Vec<u32> {
-    let mut offset_to_codepos: Vec<u32> = vec![];
+    let last = func.codes.last().expect("codes last");
+    let mut offset_to_codepos: Vec<u32> = vec![0; last.offset as usize + 1];
     // TODO: ここのaddrは、関数を超えて状態が引き継がれるはずなので、このままの実装だとだめ
     let mut addr = 0 as u32;
 

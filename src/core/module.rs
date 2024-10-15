@@ -49,7 +49,7 @@ impl<'a> Module<'a> {
 
                     let v: Vec<CodePos<'_>> = vec![];
                     let mut f = BytecodeFunction::new(&self, &body, locals.to_vec(), else_blockty, v.to_vec());
-                    let _ = f.construct()?;
+                    let _ = f.construct();
                     ret.push(Function::BytecodeFunction(f));
                 }
                 None => {
