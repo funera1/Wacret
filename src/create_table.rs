@@ -1,4 +1,4 @@
-use crate::core::function::Function;
+use crate::core::function::{BytecodeFunction, Function};
 use crate::core::module;
 
 use camino::Utf8PathBuf;
@@ -39,13 +39,20 @@ pub fn calc_tablemap(funcs: &Vec<Function>) -> (Vec<u32>, Vec<Vec<u32>>) {
     let mut tablemap_offset: Vec<Vec<u32>> = vec![];
 
     for func in funcs {
-        tablemap_func.push(calc_tablefunc(&func));
-        tablemap_offset.push(calc_tableoffset(&func));
+        match func {
+            Function::ImportFunction(_) => {
+                tablemap_func.push(0);
+            }
+            Function::BytecodeFunction(f) => {
+                tablemap_func.push(calc_tablefunc(&f));
+                tablemap_offset.push(calc_tableoffset(&f));
+            }
+        }
     }
     return (tablemap_func, tablemap_offset);
 }
 
-fn calc_tablefunc(func: &Function) -> u32 {
+fn calc_tablefunc(func: &BytecodeFunction) -> u32 {
     // "tablemap_offset format"
     // 関数fについて
     //  - fのローカルの長さ(u32)
@@ -58,7 +65,7 @@ fn calc_tablefunc(func: &Function) -> u32 {
     return BYTE_U32 + (local_len * BYTE_U8) + (codes_len * (BYTE_U32 + BYTE_U64));
 }
 
-fn calc_tableoffset(func: &Function) -> Vec<u32> {
+fn calc_tableoffset(func: &BytecodeFunction) -> Vec<u32> {
     let mut offset_to_codepos: Vec<u32> = vec![];
     // TODO: ここのaddrは、関数を超えて状態が引き継がれるはずなので、このままの実装だとだめ
     let mut addr = 0 as u32;
@@ -86,11 +93,17 @@ pub fn write_type_stack_table(funcs: &Vec<Function>, filename: &str) -> Result<(
     let f: File = File::create(filename)?;
 
     // TODO: codepos周りの命名がキモいので整理する
-    for func in funcs {
-        for codepos in &func.codes {
-            // let _ = write_type_stack(&mut type_stack_table, &codepos)?;
-            let _ = io::write_u32(&f, codepos.type_stack.len() as u32);
-            let _ = io::write_u8s(&f, &codepos.type_stack);
+    for function in funcs {
+        match function {
+            Function::ImportFunction(_) => {
+            }
+            Function::BytecodeFunction(func) => {
+                for codepos in &func.codes {
+                    // let _ = write_type_stack(&mut type_stack_table, &codepos)?;
+                    let _ = io::write_u32(&f, codepos.type_stack.len() as u32);
+                    let _ = io::write_u8s(&f, &codepos.type_stack);
+                }
+            }
         }
     } 
 
@@ -102,6 +115,7 @@ pub fn write_tablemap_func(tablemap_func: &Vec<u32>, filename: &str) -> Result<(
 
     let mut fidx = 0;
     for addr in tablemap_func {
+        // TODO: この実装だとimport functionのfidxが考慮されない
         let _ = io::write_u32(&f, fidx)?;
         let _ = io::write_u64(&f, *addr as u64)?;
         fidx += 1;
@@ -121,15 +135,22 @@ pub fn write_tablemap_offset(tablemap_offset: &Vec<Vec<u32>>, funcs: &Vec<Functi
     let f: File = File::create(filename)?;
 
     let mut fidx = 0;
-    for func in funcs {
-        let locals = &func.locals;
-        let _ = io::write_u32(&f, locals.len() as u32)?;
-        let _ = io::write_u8s(&f, &locals)?;
-        for c in &func.codes {
-            let _ = io::write_u32(&f, c.offset)?;
-            let _ = io::write_u64(&f, tablemap_offset[fidx][c.offset as usize] as u64)?;
+    for function in funcs {
+        match function {
+            Function::ImportFunction(_) => {
+
+            }
+            Function::BytecodeFunction(func) => {
+                let locals = &func.locals;
+                let _ = io::write_u32(&f, locals.len() as u32)?;
+                let _ = io::write_u8s(&f, &locals)?;
+                for c in &func.codes {
+                    let _ = io::write_u32(&f, c.offset)?;
+                    let _ = io::write_u64(&f, tablemap_offset[fidx][c.offset as usize] as u64)?;
+                }
+                fidx += 1;
+            }
         }
-        fidx += 1;
     }
     return Ok(());
 }

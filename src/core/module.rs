@@ -2,7 +2,7 @@ use anyhow::Result;
 use wasmparser::{Parser, Payload, TypeRef};
 use wasmparser::{FunctionBody, FuncType, GlobalType, BlockType, ValType};
 
-use crate::core::function::{Function, CodePos, valtype_to_size};
+use crate::core::function::{Function, BytecodeFunction, ImportFunction, CodePos, valtype_to_size};
 
 pub struct Fn<'a> {
     pub fidx: u32,
@@ -37,7 +37,7 @@ impl<'a> Module<'a> {
     }
 
     pub fn parse(&self) -> Result<Vec<Function>> {
-        let mut ret = vec![];
+        let mut ret : Vec<Function> = vec![];
 
         for i in 0..self.funcs.len() as u32 {
             let body = &self.funcs[i as usize].body;
@@ -48,13 +48,14 @@ impl<'a> Module<'a> {
                     log::debug!("local size in {}th function: {}", i, locals.to_vec().len());
 
                     let v: Vec<CodePos<'_>> = vec![];
-                    let mut f = Function::new(&self, &body, locals.to_vec(), else_blockty, v.to_vec());
+                    let mut f = BytecodeFunction::new(&self, &body, locals.to_vec(), else_blockty, v.to_vec());
                     let _ = f.construct()?;
-                    ret.push(f);
+                    ret.push(Function::BytecodeFunction(f));
                 }
                 None => {
                     log::debug!("{}th function is import_function", i);
-                    continue;
+                    let f = ImportFunction::new();
+                    ret.push(Function::ImportFunction(f));
                 },
             };
         }

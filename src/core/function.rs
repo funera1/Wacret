@@ -3,7 +3,22 @@ use anyhow::Result;
 
 use crate::core::module::Module;
 
-pub struct Function<'a> {
+pub enum Function<'a> {
+    ImportFunction(ImportFunction),
+    BytecodeFunction(BytecodeFunction<'a>),
+}
+
+pub struct ImportFunction {
+
+}
+
+impl ImportFunction {
+    pub fn new() -> Self {
+        Self{}
+    }
+}
+
+pub struct BytecodeFunction<'a> {
     pub locals: Vec<u8>,
     pub codes: Vec<CodePos<'a>>,
 
@@ -20,8 +35,7 @@ pub struct CodePos<'a> {
     pub callee_return_size: u32,
 }
 
-
-impl<'a> Function<'a> {
+impl<'a> BytecodeFunction<'a> {
     pub fn new(module: &'a Module<'a>, func_body: &'a FunctionBody<'a>, locals: Vec<u8>, else_blockty: BlockType, codes: Vec<CodePos<'a>>) -> Self {
         return Self{module, locals, else_blockty, func_body, codes};
     } 
