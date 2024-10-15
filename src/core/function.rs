@@ -41,7 +41,7 @@ impl<'a> BytecodeFunction<'a> {
     } 
 
     // pub fn construct(mut f: Function) -> Result<Vec<CodePos>> {
-    pub fn construct(&mut self) -> Result<Vec<CodePos>> {
+    pub fn construct(&mut self) -> Result<()> {
         let mut type_stack: Vec<u8> = Vec::new();
         let mut codes = Vec::<CodePos>::new();
 
@@ -86,7 +86,9 @@ impl<'a> BytecodeFunction<'a> {
             codes.push(codepos);
         }
 
-        return Ok(codes)
+        self.codes = codes;
+
+        return Ok(());
     }
 
 
