@@ -106,6 +106,12 @@ pub fn write_type_stack_table(funcs: &Vec<Function>, filename: &str) -> Result<(
             }
             Function::BytecodeFunction(func) => {
                 for codepos in &func.codes {
+                    if let Operator::Call{..} = codepos.opcode {
+                        // addr += BYTE_U32 + (len - codepos.callee_return_size) * BYTE_U8;
+                        let size = codepos.type_stack.len() - codepos.callee_return_size as usize;
+                        let _ = io::write_u32(&f, size as u32);
+                        let _ = io::write_u8s(&f, &codepos.type_stack[..size]);
+                    }
                     // let _ = write_type_stack(&mut type_stack_table, &codepos)?;
                     let _ = io::write_u32(&f, codepos.type_stack.len() as u32);
                     let _ = io::write_u8s(&f, &codepos.type_stack);
