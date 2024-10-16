@@ -49,10 +49,13 @@ impl<'a> BytecodeFunction<'a> {
         let mut reader = self.func_body.get_operators_reader()?;
         let base_offset = reader.original_position() as u32;
 
-        // offset==0のときを考慮
-        // let cur_pos = self.type_table.seek(SeekFrom::Current(0))?;
-        // self.offset_to_addr[func_idx as usize].push((0, cur_pos));
-        // let _ = self.dump_type_stack(&v);
+        // codesの先頭には、空のcodeposを入れておく. (offset=0を考慮するため)
+        codes.push(CodePos{
+            opcode: Operator::Nop,
+            offset: 0,
+            type_stack: vec![],
+            callee_return_size: 0,
+        });
 
         while !reader.eof() {
             let op = reader.read()?;
@@ -69,7 +72,7 @@ impl<'a> BytecodeFunction<'a> {
             match &op {
                 Operator::Call{ function_index } => {
                     let callee_func_type: &FuncType = self.module.get_type_by_func(*function_index);
-                    callee_return_size = (type_stack.len() - callee_func_type.results().len()) as u32;
+                    callee_return_size = callee_func_type.results().len() as u32;
                 }
 
                 _ => {}
