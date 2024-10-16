@@ -99,22 +99,20 @@ fn calc_tableoffset(func: &BytecodeFunction, base_addr: u32) -> (Vec<u32>, u32) 
 pub fn write_type_stack_table(funcs: &Vec<Function>, filename: &str) -> Result<()> {
     let f: File = File::create(filename)?;
 
-    // TODO: codepos周りの命名がキモいので整理する
     for function in funcs {
         match function {
             Function::ImportFunction(_) => {
             }
             Function::BytecodeFunction(func) => {
                 for codepos in &func.codes {
+                    let _ = io::write_u32(&f, codepos.type_stack.len() as u32);
+                    let _ = io::write_u8s(&f, &codepos.type_stack);
+
                     if let Operator::Call{..} = codepos.opcode {
-                        // addr += BYTE_U32 + (len - codepos.callee_return_size) * BYTE_U8;
                         let size = codepos.type_stack.len() - codepos.callee_return_size as usize;
                         let _ = io::write_u32(&f, size as u32);
                         let _ = io::write_u8s(&f, &codepos.type_stack[..size]);
                     }
-                    // let _ = write_type_stack(&mut type_stack_table, &codepos)?;
-                    let _ = io::write_u32(&f, codepos.type_stack.len() as u32);
-                    let _ = io::write_u8s(&f, &codepos.type_stack);
                 }
             }
         }
@@ -128,7 +126,6 @@ pub fn write_tablemap_func(tablemap_func: &Vec<u32>, filename: &str) -> Result<(
 
     let mut fidx = 0;
     for addr in tablemap_func {
-        // TODO: この実装だとimport functionのfidxが考慮されない
         let _ = io::write_u32(&f, fidx)?;
         let _ = io::write_u64(&f, *addr as u64)?;
         fidx += 1;
