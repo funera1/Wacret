@@ -21,7 +21,6 @@ pub fn create_table(path: Utf8PathBuf) -> Result<()> {
     // 型スタックを生成
     let funcs = m.parse()?;
 
-
     // 型スタックから型スタックテーブルを生成する
     let (tablemap_func, tablemap_offset) = calc_tablemap(&funcs);
     

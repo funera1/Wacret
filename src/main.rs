@@ -2,6 +2,7 @@
 mod core;
 mod create_table;
 mod display;
+mod compile;
 
 use env_logger;
 // use log::{debug, error, log_enabled, info, Level};
