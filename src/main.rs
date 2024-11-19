@@ -1,6 +1,7 @@
 // mod cli;
 mod core;
 mod create_table;
+mod display;
 
 use env_logger;
 // use log::{debug, error, log_enabled, info, Level};
@@ -25,6 +26,9 @@ enum SubCommands {
     Create {
         path: Utf8PathBuf,
     },
+    Display {
+        path: Utf8PathBuf,
+    }
 }
 
 #[derive(Debug, Args)]
@@ -41,7 +45,14 @@ fn main() {
             let result = create_table::create_table(path);
             match result {
                 Ok(_) => log::info!("Success to create the type stack tables"),
-                Err(err) => log::error!("Fialed to create the type stack table, {}", err)
+                Err(err) => log::error!("Failed to create the type stack table, {}", err)
+            }
+        },
+        SubCommands::Display { path } => {
+            let result = display::main(path);
+            match result {
+                Ok(_) => log::info!("Success to display"),
+                Err(err) => log::error!("Failed to display"),
             }
         },
     }
