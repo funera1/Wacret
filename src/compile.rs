@@ -74,10 +74,12 @@ fn pop_frame_offset(stack: &Vec<ValInfo>, default_type: Vec<WasmType>) -> Result
     return Ok(input);
 }
 
-fn push_frame_offset(stack: &mut Vec<ValInfo>, default_type: Vec<WasmType>) {
-    for _ in default_type {
+fn push_frame_offset(stack: &mut Vec<ValInfo>, default_type: Vec<WasmType>) -> Vec<WasmType> {
+    for _ in 0..default_type.len() {
         stack.push(ValInfo::new(SpaceKind::Dynamic));
     }
+    
+    return default_type;
 }
 
 
@@ -195,14 +197,8 @@ impl<'a> FastBytecodeFunction<'a> {
                 Operator::GlobalSet{ .. } => {
                     // [Any] -> []
                     // inputはstackのtopを見てから決める
-                    let input;
+                    let input = pop_frame_offset(&stack, vec![WasmType::Any])?;
                     let output = vec![];
-
-                    let val_info = stack.pop()?;
-                    match val_info.space_kind {
-                        SpaceKind::Dynamic => input = vec![WasmType::Any],
-                        SpaceKind::Static => input = vec![],
-                    }
 
                     fast_bytecode.push(Self::emit_label(codepos, input, output));
                 }
@@ -214,49 +210,15 @@ impl<'a> FastBytecodeFunction<'a> {
                 Operator::I32Load{ .. } | Operator::F32Load{ .. } | 
                 Operator::I32Load8S{ .. } | Operator::I32Load8U{ .. } | Operator::I32Load16S{ .. } | Operator::I32Load16U{ .. } => {
                     // [U32] -> [U32]
-                    let input: Vec<WasmType>;
-                    let output = vec![WasmType::U64];
-
-                    // stackからpopして命令の引数に格納する
-                    let val_info = stack.pop()?;
-                    match val_info.space_kind {
-                        SpaceKind::Dynamic => {
-                            input = vec![WasmType::U32];
-                        },
-                        SpaceKind::Static => {
-                            input = vec![];
-                        }
-                    }
-
-                    // 返り値の型をstackへpushする
-                    stack.push(ValInfo::new(
-                        SpaceKind::Dynamic,
-                    ));
-
+                    let input = pop_frame_offset(&stack, vec![WasmType::U32])?;
+                    let output = push_frame_offset(&mut stack, vec![WasmType::U32]);
                     fast_bytecode.push(Self::emit_label(codepos, input, output));
                 }
                 Operator::I64Load{ .. } | Operator::F64Load{ .. } |
                 Operator::I64Load8S{ .. } | Operator::I64Load8U{ .. } | Operator::I64Load16S{ .. } | Operator::I64Load16U{ .. } | Operator::I64Load32S{ .. } | Operator::I64Load32U{ .. } => {
                     // [U32] -> [U64]
-                    let input: Vec<WasmType>;
-                    let output = vec![WasmType::U64];
-
-                    // stackからpopして命令の引数に格納する
-                    let val_info = stack.pop()?;
-                    match val_info.space_kind {
-                        SpaceKind::Dynamic => {
-                            input = vec![WasmType::U32];
-                        },
-                        SpaceKind::Static => {
-                            input = vec![];
-                        }
-                    }
-
-                    // 返り値の型をstackへpushする
-                    stack.push(ValInfo::new(
-                        SpaceKind::Dynamic,
-                    ));
-
+                    let input = pop_frame_offset(&stack, vec![WasmType::U32])?;
+                    let output = push_frame_offset(&mut stack, vec![WasmType::U64]);
                     fast_bytecode.push(Self::emit_label(codepos, input, output));
                 }
 
@@ -272,10 +234,7 @@ impl<'a> FastBytecodeFunction<'a> {
                 Operator::I32Const{ .. } | Operator::F32Const{ .. } |
                 Operator::I64Const{ .. } | Operator::F64Const{ .. } => {
                     // skip_label
-                    // TODO: magic numberをやめる
-                    stack.push(ValInfo::new(
-                        SpaceKind::Static,
-                    ));
+                    stack.push(ValInfo::new(SpaceKind::Static));
                 }
 
                 Operator::I32Eqz{ .. } => {
