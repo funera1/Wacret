@@ -21,29 +21,52 @@ pub struct FastBytecodeFunction<'a> {
 #[derive(Clone, Copy)]
 enum WasmType {
     Any = 0,
-    ByteU8 = 1,
-    ByteU32 = 4,
-    ByteU64 = 8,
-    ByteU128 = 16,
+    U8 = 1,
+    U32 = 4,
+    U64 = 8,
+    U128 = 16,
 }
 
 fn valtype_to_wasmtype(valtype: ValType) -> WasmType {
     match valtype {
-        ValType::I32 | ValType::F32 => return WasmType::ByteU32,
-        ValType::I64 | ValType::F64 => return WasmType::ByteU64,
+        ValType::I32 | ValType::F32 | ValType::Ref(_) => return WasmType::U32,
+        ValType::I64 | ValType::F64 => return WasmType::U64,
         // TODO: refはBYTE_U128じゃなさそう
-        ValType::V128 | ValType::Ref(_)=> return WasmType::ByteU128,
+        ValType::V128 => return WasmType::U128,
     }
 }
 
 fn u8_to_wasmtype(num: u8) -> WasmType {
     match num {
-        4 => return WasmType::ByteU32,
-        8 => return WasmType::ByteU64,
-        16 => return WasmType::ByteU128,
+        4 => return WasmType::U32,
+        8 => return WasmType::U64,
+        16 => return WasmType::U128,
         _ => return WasmType::Any,
     }
 }
+
+#[derive(Clone, Copy)]
+enum SpaceKind {
+    Static,
+    Dynamic,
+}
+
+#[derive(Clone, Copy)]
+pub struct ValInfo {
+    ty: WasmType,
+    // pos: u32,
+    space_kind : SpaceKind,
+}
+
+impl ValInfo {
+    pub fn new(ty: WasmType, space_kind: SpaceKind) -> ValInfo {
+        return ValInfo {
+            ty: ty,
+            space_kind: space_kind,
+        };
+    }
+}
+
 
 #[derive(Clone)]
 pub struct OpType {
@@ -90,7 +113,8 @@ impl<'a> FastBytecodeFunction<'a> {
 
     pub fn compile_fast_bytecode(module: &Module, func: &'a BytecodeFunction) {
         // 仮スタック
-        let mut stack: Vec<WasmType> = Vec::new();
+        // TODO: 多分stackにはコード位置も入る
+        let mut stack: Vec<ValInfo> = Vec::new();
         let mut fast_bytecode: Vec<FastCodePos> = Vec::new();
 
         for codepos in &func.codes {
@@ -136,7 +160,10 @@ impl<'a> FastBytecodeFunction<'a> {
                 Operator::LocalGet{ local_index } => {
                     // skip_label
                     // local_indexの型をstackにpushする
-                    stack.push(u8_to_wasmtype(func.locals[local_index as usize]));
+                    stack.push(ValInfo::new(
+                        u8_to_wasmtype(func.locals[local_index as usize]),
+                        SpaceKind::Static,
+                    ));
                 }
                 Operator::LocalSet{ .. } => {
                     // TODO: local.getをskipすることで発生するごにょごにょを処理しないといけない
@@ -153,16 +180,33 @@ impl<'a> FastBytecodeFunction<'a> {
                     fast_bytecode.push(Self::emit_label(codepos, vec![WasmType::Any], vec![]));
                 }
                 Operator::TableGet{ .. } => {
-                    fast_bytecode.push(Self::emit_label(codepos, vec![WasmType::Any], vec![]));
                 }
                 Operator::TableSet{ .. } => {
                 }
 
-                Operator::I32Load{ .. } => {
+                Operator::I32Load{ .. } | Operator::F32Load{ .. } => {
+                    // [U32] -> [U32]
+                    let input: Vec<WasmType>;
+
+                    // stackからpopして命令の引数に格納する
+                    let val_info = stack.pop()?;
+                    match val_info.space_kind {
+                        SpaceKind::Dynamic => {
+                            input = vec![WasmType::U32];
+                        },
+                        SpaceKind::Static => {
+                            input = vec![];
+                        }
+                    }
+
+                    // 返り値の型をstackへpushする
+                    fast_bytecode.push(Self::emit_label(codepos, input, vec![WasmType::U32]));
+                    stack.push(ValInfo::new(
+                        WasmType::U32,
+                        SpaceKind::Dynamic,
+                    ));
                 }
                 Operator::I64Load{ .. } => {
-                }
-                Operator::F32Load{ .. } => {
                 }
                 Operator::F64Load{ .. } => {
                 }
@@ -181,12 +225,12 @@ impl<'a> FastBytecodeFunction<'a> {
                 Operator::I32Const{ .. } | Operator::F32Const{ .. } => {
                     // skip_label
                     // TODO: magic numberをやめる
-                    stack.push(WasmType::ByteU32);
+                    stack.push(WasmType::U32);
                 }
                 Operator::I64Const{ .. } | Operator::F64Const{ .. } => {
                     // skip_label
                     // TODO: magic numberをやめる
-                    stack.push(WasmType::ByteU64);
+                    stack.push(WasmType::U64);
                 }
 
                 Operator::I32Eqz{ .. } => {
