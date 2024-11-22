@@ -13,11 +13,6 @@ pub struct FastBytecodeFunction<'a> {
 }
 
 
-// const BYTE_U8: u8 = 1;
-// const BYTE_U32: u8 = 4;
-// const BYTE_U64: u8 = 8;
-// const BYTE_U128: u8 = 16;
-
 #[derive(Clone, Copy)]
 enum WasmType {
     Any = 0,
@@ -53,15 +48,14 @@ enum SpaceKind {
 
 #[derive(Clone, Copy)]
 pub struct ValInfo {
-    ty: WasmType,
+    // ty: WasmType,
     // pos: u32,
     space_kind : SpaceKind,
 }
 
 impl ValInfo {
-    pub fn new(ty: WasmType, space_kind: SpaceKind) -> ValInfo {
+    pub fn new(space_kind: SpaceKind) -> ValInfo {
         return ValInfo {
-            ty: ty,
             space_kind: space_kind,
         };
     }
@@ -161,7 +155,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     // skip_label
                     // local_indexの型をstackにpushする
                     stack.push(ValInfo::new(
-                        u8_to_wasmtype(func.locals[local_index as usize]),
+                        // u8_to_wasmtype(func.locals[local_index as usize]),
                         SpaceKind::Static,
                     ));
                 }
@@ -184,9 +178,11 @@ impl<'a> FastBytecodeFunction<'a> {
                 Operator::TableSet{ .. } => {
                 }
 
-                Operator::I32Load{ .. } | Operator::F32Load{ .. } => {
+                Operator::I32Load{ .. } | Operator::F32Load{ .. } | 
+                Operator::I32Load8S{ .. } | Operator::I32Load8U{ .. } | Operator::I32Load16S{ .. } | Operator::I32Load16U{ .. } => {
                     // [U32] -> [U32]
                     let input: Vec<WasmType>;
+                    let output = vec![WasmType::U64];
 
                     // stackからpopして命令の引数に格納する
                     let val_info = stack.pop()?;
@@ -200,20 +196,35 @@ impl<'a> FastBytecodeFunction<'a> {
                     }
 
                     // 返り値の型をstackへpushする
-                    fast_bytecode.push(Self::emit_label(codepos, input, vec![WasmType::U32]));
+                    fast_bytecode.push(Self::emit_label(codepos, input, output));
                     stack.push(ValInfo::new(
-                        WasmType::U32,
                         SpaceKind::Dynamic,
                     ));
                 }
-                Operator::I64Load{ .. } => {
-                }
-                Operator::F64Load{ .. } => {
-                }
-                Operator::I32Load8S{ .. } | Operator::I32Load8U{ .. } | Operator::I32Load16S{ .. } | Operator::I32Load16U{ .. } => {
-                }
+                Operator::I64Load{ .. } | Operator::F64Load{ .. } |
                 Operator::I64Load8S{ .. } | Operator::I64Load8U{ .. } | Operator::I64Load16S{ .. } | Operator::I64Load16U{ .. } | Operator::I64Load32S{ .. } | Operator::I64Load32U{ .. } => {
+                    // [U32] -> [U64]
+                    let input: Vec<WasmType>;
+                    let output = vec![WasmType::U64];
+
+                    // stackからpopして命令の引数に格納する
+                    let val_info = stack.pop()?;
+                    match val_info.space_kind {
+                        SpaceKind::Dynamic => {
+                            input = vec![WasmType::U32];
+                        },
+                        SpaceKind::Static => {
+                            input = vec![];
+                        }
+                    }
+
+                    // 返り値の型をstackへpushする
+                    fast_bytecode.push(Self::emit_label(codepos, input, output));
+                    stack.push(ValInfo::new(
+                        SpaceKind::Dynamic,
+                    ));
                 }
+
                 Operator::I32Store{ .. } | Operator::I64Store{ .. } | Operator::F32Store{ .. } | Operator::F64Store{ .. } 
                 | Operator::I32Store8{ .. } | Operator::I32Store16 { .. } | Operator::I64Store8{ .. } | Operator::I64Store16 { .. } | Operator::I64Store32{ .. } => {
                 }
