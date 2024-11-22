@@ -201,8 +201,22 @@ impl<'a> FastBytecodeFunction<'a> {
                     );
                 }
                 Operator::TableGet{ .. } => {
+                    // [U32] -> [Any]
+                    let i = vec![WasmType::U32];
+                    let o = vec![WasmType::Any];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::TableSet{ .. } => {
+                    // [U32, Any] -> []
+                    let i = vec![WasmType::U32, WasmType::Any];
+                    let o = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
 
                 Operator::I32Load{ .. } | Operator::F32Load{ .. } | 
