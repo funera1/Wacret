@@ -108,16 +108,16 @@ impl<'a> FastBytecodeFunction<'a> {
     }
 
     // TODO: わかりやすい名前に変える
-    fn popf(stack: &Vec<ValInfo>, default_type: Vec<WasmType>) -> Result<Vec<WasmType>> {
+    fn popf(stack: &mut Vec<ValInfo>, default_type: Vec<WasmType>) -> Vec<WasmType> {
         let mut input = vec![];
         for t in default_type {
-            let val_info = stack.pop()?;
+            let val_info = stack.pop().expect("[ERROR] stack is empty");
             match val_info.space_kind {
                 SpaceKind::Dynamic => input.push(t),
                 SpaceKind::Static => {},
             }
         }
-        return Ok(input);
+        return input;
     }
 
     // TODO: わかりやすい名前に変える
@@ -192,7 +192,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::Any];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::GlobalSet{ .. } => {
@@ -201,7 +201,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::TableGet{ .. } => {
@@ -216,7 +216,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I64Load{ .. } | Operator::F64Load{ .. } |
@@ -226,7 +226,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
 
@@ -237,7 +237,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::MemorySize{ .. } => {
@@ -246,7 +246,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::MemoryGrow{ .. } => {
@@ -255,7 +255,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
 
@@ -271,7 +271,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I32Eq | Operator::I32Ne | Operator::I32LtS | Operator::I32LtU | Operator::I32GtS | Operator::I32GtU
@@ -282,7 +282,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I64Eqz{ .. } => {
@@ -291,7 +291,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I64Eq | Operator::I64Ne | Operator::I64LtS | Operator::I64LtU | Operator::I64GtS | Operator::I64GtU
@@ -302,7 +302,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I32Clz | Operator::I32Ctz | Operator::I32Popcnt => {
@@ -311,7 +311,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I32Add | Operator::I32Sub | Operator::I32Mul | Operator::I32DivS | Operator::I32DivU | Operator::I32RemS | Operator::I32RemU => {
@@ -320,7 +320,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I32And | Operator::I32Or | Operator::I32Xor | Operator::I32Shl | Operator::I32ShrS | Operator::I32ShrU | Operator::I32Rotl | Operator::I32Rotr => {
@@ -329,7 +329,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I64Clz | Operator::I64Ctz | Operator::I64Popcnt => {
@@ -338,7 +338,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I64Add | Operator::I64Sub | Operator::I64Mul | Operator::I64DivS | Operator::I64DivU | Operator::I64RemS | Operator::I64RemU => {
@@ -347,7 +347,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I64And | Operator::I64Or | Operator::I64Xor | Operator::I64Shl | Operator::I64ShrS | Operator::I64ShrU | Operator::I64Rotl | Operator::I64Rotr => {
@@ -356,7 +356,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
 
@@ -366,16 +366,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
-                    );
-                }
-                Operator::F32Abs | Operator::F32Neg | Operator::F32Ceil | Operator::F32Floor | Operator::F32Trunc | Operator::F32Nearest | Operator::F32Sqrt => {
-                    // [f32] -> [f32]
-                    let i = vec![WasmType::U32];
-                    let o = vec![WasmType::U32];
-
-                    fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::F32Add | Operator::F32Sub | Operator::F32Mul | Operator::F32Div | Operator::F32Min | Operator::F32Max | Operator::F32Copysign => {
@@ -384,7 +375,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::F64Abs | Operator::F64Neg | Operator::F64Ceil | Operator::F64Floor | Operator::F64Trunc | Operator::F64Nearest | Operator::F64Sqrt => {
@@ -393,7 +384,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::F64Add | Operator::F64Sub | Operator::F64Mul | Operator::F64Div | Operator::F64Min | Operator::F64Max | Operator::F64Copysign => {
@@ -402,7 +393,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
 
@@ -412,7 +403,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I32TruncF32S | Operator::I32TruncF32U => {
@@ -421,7 +412,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I32TruncF64S | Operator::I32TruncF64U => {
@@ -430,7 +421,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I64ExtendI32S | Operator::I64ExtendI32U => {
@@ -439,7 +430,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I64TruncF32S | Operator::I64TruncF32U => {
@@ -448,7 +439,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I64TruncF64S | Operator::I64TruncF64U => {
@@ -457,7 +448,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::F32ConvertI32S | Operator::F32ConvertI32U => {
@@ -466,7 +457,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::F32ConvertI64S | Operator::F32ConvertI64U => {
@@ -475,7 +466,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::F32DemoteF64 => {
@@ -484,7 +475,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U32];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::F64ConvertI32S | Operator::F64ConvertI32U => {
@@ -493,7 +484,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::F64ConvertI64S | Operator::F64ConvertI64U => {
@@ -502,7 +493,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::F64PromoteF32 => {
@@ -511,7 +502,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::U64];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I32ReinterpretF32 | Operator::I64ReinterpretF64 | Operator::F32ReinterpretI32 | Operator::F64ReinterpretI64 => {
@@ -520,7 +511,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::Any];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::I32Extend8S | Operator::I32Extend16S | Operator::I64Extend8S | Operator::I64Extend16S | Operator::I64Extend32S => {
@@ -529,7 +520,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![WasmType::Any];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 
@@ -539,7 +530,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
                 Operator::MemoryFill{..} => {
@@ -548,7 +539,7 @@ impl<'a> FastBytecodeFunction<'a> {
                     let o = vec![];
 
                     fast_bytecode.push(
-                        Self::emit_label(codepos, Self::popf(&stack, i)?, Self::pushf(&mut stack, o))
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
 
