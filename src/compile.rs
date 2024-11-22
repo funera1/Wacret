@@ -62,6 +62,25 @@ impl ValInfo {
 }
 
 
+fn pop_frame_offset(stack: &Vec<ValInfo>, default_type: Vec<WasmType>) -> Result<Vec<WasmType>> {
+    let mut input = vec![];
+    for t in default_type {
+        let val_info = stack.pop()?;
+        match val_info.space_kind {
+            SpaceKind::Dynamic => input.push(t),
+            SpaceKind::Static => {},
+        }
+    }
+    return Ok(input);
+}
+
+fn push_frame_offset(stack: &mut Vec<ValInfo>, default_type: Vec<WasmType>) {
+    for _ in default_type {
+        stack.push(ValInfo::new(SpaceKind::Dynamic));
+    }
+}
+
+
 #[derive(Clone)]
 pub struct OpType {
     input: Vec<WasmType>,
@@ -166,12 +185,26 @@ impl<'a> FastBytecodeFunction<'a> {
                     // TODO: local.getをskipすることで発生するごにょごにょを処理しないといけない
                 }
                 Operator::GlobalGet{ global_index } => {
-                    fast_bytecode.push(
-                        Self::emit_label(codepos, vec![], 
-                            vec![valtype_to_wasmtype(module.globals[global_index as usize].content_type)]));
+                    // [] -> [Any]
+                    let input = vec![];
+                    let output = vec![valtype_to_wasmtype(module.globals[global_index as usize].content_type)];
+
+                    stack.push(ValInfo::new(SpaceKind::Dynamic));
+                    fast_bytecode.push(Self::emit_label(codepos, input, output));
                 }
                 Operator::GlobalSet{ .. } => {
-                    fast_bytecode.push(Self::emit_label(codepos, vec![WasmType::Any], vec![]));
+                    // [Any] -> []
+                    // inputはstackのtopを見てから決める
+                    let input;
+                    let output = vec![];
+
+                    let val_info = stack.pop()?;
+                    match val_info.space_kind {
+                        SpaceKind::Dynamic => input = vec![WasmType::Any],
+                        SpaceKind::Static => input = vec![],
+                    }
+
+                    fast_bytecode.push(Self::emit_label(codepos, input, output));
                 }
                 Operator::TableGet{ .. } => {
                 }
@@ -196,10 +229,11 @@ impl<'a> FastBytecodeFunction<'a> {
                     }
 
                     // 返り値の型をstackへpushする
-                    fast_bytecode.push(Self::emit_label(codepos, input, output));
                     stack.push(ValInfo::new(
                         SpaceKind::Dynamic,
                     ));
+
+                    fast_bytecode.push(Self::emit_label(codepos, input, output));
                 }
                 Operator::I64Load{ .. } | Operator::F64Load{ .. } |
                 Operator::I64Load8S{ .. } | Operator::I64Load8U{ .. } | Operator::I64Load16S{ .. } | Operator::I64Load16U{ .. } | Operator::I64Load32S{ .. } | Operator::I64Load32U{ .. } => {
@@ -219,29 +253,29 @@ impl<'a> FastBytecodeFunction<'a> {
                     }
 
                     // 返り値の型をstackへpushする
-                    fast_bytecode.push(Self::emit_label(codepos, input, output));
                     stack.push(ValInfo::new(
                         SpaceKind::Dynamic,
                     ));
+
+                    fast_bytecode.push(Self::emit_label(codepos, input, output));
                 }
 
                 Operator::I32Store{ .. } | Operator::I64Store{ .. } | Operator::F32Store{ .. } | Operator::F64Store{ .. } 
                 | Operator::I32Store8{ .. } | Operator::I32Store16 { .. } | Operator::I64Store8{ .. } | Operator::I64Store16 { .. } | Operator::I64Store32{ .. } => {
+                    // [U32, U32] -> []
                 }
                 Operator::MemorySize{ .. } => {
                 }
                 Operator::MemoryGrow{ .. } => {
                 }
 
-                Operator::I32Const{ .. } | Operator::F32Const{ .. } => {
-                    // skip_label
-                    // TODO: magic numberをやめる
-                    stack.push(WasmType::U32);
-                }
+                Operator::I32Const{ .. } | Operator::F32Const{ .. } |
                 Operator::I64Const{ .. } | Operator::F64Const{ .. } => {
                     // skip_label
                     // TODO: magic numberをやめる
-                    stack.push(WasmType::U64);
+                    stack.push(ValInfo::new(
+                        SpaceKind::Static,
+                    ));
                 }
 
                 Operator::I32Eqz{ .. } => {
@@ -262,6 +296,13 @@ impl<'a> FastBytecodeFunction<'a> {
                 Operator::I32Clz | Operator::I32Ctz | Operator::I32Popcnt => {
                 }
                 Operator::I32Add | Operator::I32Sub | Operator::I32Mul | Operator::I32DivS | Operator::I32DivU | Operator::I32RemS | Operator::I32RemU => {
+                    // [U32, U32] -> [U32]
+                    let input = pop_frame_offset(&stack, vec![WasmType::U32, WasmType::U32])?;
+                    let output = vec![WasmType::U32];
+                    // TODO: stack.pushも関数化できたらうれしい
+                    stack.push(ValInfo::new(SpaceKind::Dynamic));
+
+                    fast_bytecode.push(Self::emit_label(codepos, input, output));
                 }
                 Operator::I32And | Operator::I32Or | Operator::I32Xor | Operator::I32Shl | Operator::I32ShrS | Operator::I32ShrU | Operator::I32Rotl | Operator::I32Rotr => {
                 }
