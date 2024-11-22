@@ -26,7 +26,6 @@ fn valtype_to_wasmtype(valtype: ValType) -> WasmType {
     match valtype {
         ValType::I32 | ValType::F32 | ValType::Ref(_) => return WasmType::U32,
         ValType::I64 | ValType::F64 => return WasmType::U64,
-        // TODO: refはBYTE_U128じゃなさそう
         ValType::V128 => return WasmType::U128,
     }
 }
@@ -62,8 +61,6 @@ impl ValInfo {
 }
 
 
-
-
 #[derive(Clone)]
 pub struct OpType {
     input: Vec<WasmType>,
@@ -73,7 +70,6 @@ pub struct OpType {
 #[derive(Clone)]
 pub struct FastCodePos<'a> {
     pub opcode: Operator<'a>,
-    // TODO: WasmTypeを使う
     pub optype: OpType,
     pub offset: u32,
 }
