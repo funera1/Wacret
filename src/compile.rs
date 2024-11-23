@@ -22,7 +22,7 @@ enum WasmType {
     U128 = 16,
 }
 
-fn valtype_to_wasmtype(valtype: ValType) -> WasmType {
+fn valtype_to_wasmtype(valtype: &ValType) -> WasmType {
     match valtype {
         ValType::I32 | ValType::F32 | ValType::Ref(_) => return WasmType::U32,
         ValType::I64 | ValType::F64 => return WasmType::U64,
@@ -63,8 +63,8 @@ impl ValInfo {
 
 #[derive(Clone)]
 pub struct OpType {
-    input: Vec<WasmType>,
-    output: Vec<WasmType>,
+    pub input: Vec<WasmType>,
+    pub output: Vec<WasmType>,
 }
 
 #[derive(Clone)]
@@ -129,6 +129,7 @@ impl<'a> FastBytecodeFunction<'a> {
         // 仮スタック
         // TODO: 多分stackにはコード位置も入る
         let mut stack: Vec<ValInfo> = Vec::new();
+        let mut label_stack: Vec<OpType> = Vec::new();
         let mut fast_bytecode: Vec<FastCodePos> = Vec::new();
 
         for codepos in &func.codes {
@@ -151,36 +152,124 @@ impl<'a> FastBytecodeFunction<'a> {
                 Operator::End{ .. } => {
                     // TODO: 挙動をちゃんと調べる
                 }
-                Operator::Br{ .. } => {
+                Operator::Br{relative_depth} => {
+                    // [t1*, t*] -> [t2*]
+                    // label_stackの上からrelative_depthのところを取得
+                    label_stack.drain(label_stack.len()-1 - relative_depth as usize..).collect();
+                    let t = label_stack.pop().expect("label stack is empty");
+                    
+                    let i: Vec<WasmType> = t.input;
+                    let o: Vec<WasmType> = t.output;
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
-                Operator::BrIf{ .. } => {
+                Operator::BrIf{relative_depth} => {
+                    // [t1*, U32] -> [t2*]
+                    label_stack.drain(label_stack.len()-1 - relative_depth as usize..).collect();
+                    let t = label_stack.pop().expect("label stack is empty");
+                    
+                    let i: Vec<WasmType> = t.input.into_iter().chain(std::iter::once(WasmType::U32)).collect();
+                    let o: Vec<WasmType> = t.output;
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
-                Operator::BrTable{ .. } => {
+                Operator::BrTable{targets} => {
+                    // [t1*, t*, U32] -> [t2*]
+                    // label_stack.drain(label_stack.len()-1 - relative_depth as usize..).collect();
+                    let t = label_stack.pop().expect("label stack is empty");
+                    
+                    let i: Vec<WasmType> = t.input.into_iter().chain(std::iter::once(WasmType::U32)).collect();
+                    let o: Vec<WasmType> = t.output;
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::Return{ .. } => {
+                    // TODO: ほんとにbreakで良いのか確認
+                    break;
                 }
                 Operator::Call{ function_index } => {
+                    // [Args*] -> [Rets*]
+                    let f = module.get_type_by_func(function_index);
+                    let params = f.params();
+                    let results = f.results();
+
+                    let i: Vec<WasmType> = params.iter().map(valtype_to_wasmtype).collect();
+                    let o: Vec<WasmType> = results.iter().map(valtype_to_wasmtype).collect();
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::CallIndirect{ type_index , .. } => {
+                    // [Args*, U32] -> [Rets*]
+                    let f = module.get_type_by_type(type_index);
+                    let params = f.params();
+                    let results = f.results();
+
+                    let i: Vec<WasmType> = params.iter().map(valtype_to_wasmtype)
+                                                 .chain(std::iter::once(WasmType::U32)).collect();
+                    let o: Vec<WasmType> = results.iter().map(valtype_to_wasmtype).collect();
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::Drop{ .. } => {
+                    // [Any] -> []
                     // skip_label
+                    let _ = stack.pop().expect("[ERROR] stack is empty");
                 }
                 Operator::Select{ .. } => {
+                    // [Any, Any, U32] -> [Any]
+                    let i = vec![WasmType::Any, WasmType::Any, WasmType::U32];
+                    let o = vec![WasmType::Any];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::TypedSelect{ .. } => {
+                    // [Any, Any, U32] -> [Any]
+                    let i = vec![WasmType::Any, WasmType::Any, WasmType::U32];
+                    let o = vec![WasmType::Any];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
 
                 Operator::LocalGet{ local_index } => {
+                    // [] -> [Any]
                     // skip_label
                     // local_indexの型をstackにpushする
                     stack.push(ValInfo::new(SpaceKind::Static));
                 }
                 Operator::LocalSet{ .. } => {
-                    // TODO: local.getをskipすることで発生するごにょごにょを処理しないといけない
+                    // [Any] -> []
+                    // NOTE: 理解しやすくするために簡単にしている。
+                    // NOTE: preserveのためにCOPY命令が挿入されたり、LOCAL_SET命令が喪失したりするが一旦考慮しない
+                    let i = vec![WasmType::Any];
+                    let o = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::LocalTee{ .. } => {
+                    // [Any] -> [Any]
                     // TODO: local.getをskipすることで発生するごにょごにょを処理しないといけない
+                    let i = vec![WasmType::Any];
+                    let o = vec![WasmType::Any];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::GlobalGet{ global_index } => {
                     // [] -> [Any]
