@@ -6,14 +6,16 @@ use std::collections::HashMap;
 use camino::Utf8PathBuf;
 use anyhow::Result;
 
+#[derive(Clone)]
 struct ExtFastCodePos<'a> {
     codepos: FastCodePos<'a>,
     type_stack: Vec<WasmType>,
 }
 
+#[derive(Clone)]
 struct EqOps<'a> {
-    b: &'a Vec<&'a CodePos<'a>>,
-    f: &'a Vec<&'a ExtFastCodePos<'a>>,
+    b: Vec<&'a CodePos<'a>>,
+    f: Vec<&'a ExtFastCodePos<'a>>,
 }
 
 pub fn main(path: Utf8PathBuf) -> Result<()> {
@@ -26,7 +28,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     let funcs = m.parse()?;
 
 
-    let mut compiled_funcs: Vec<FastBytecodeFunction<'_>> = Vec::new();
+    let mut merged_funcs: Vec<Vec<EqOps>> = Vec::new();
     // 高速バイトコードを配列に詰める。このとき、高速バイトコードの各命令は、wasmコードの命令と等価な位置(index)へ格納する
     for func in funcs {
         match func {
@@ -40,13 +42,14 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
 
                 // funcとcompiled_funcで同じオフセット同士を紐付ける
                 // NOTE: 一つのオフセットに対して複数の命令が入る場合がある
-                let all_codes: Vec<EqOps>  = correspond_semantic_equations(&b.codes, &ext_compiled_code);
-                
-                // let fast_bytecode = FastBytecodeFunction::compile_fast_bytecode(module, b);
-                // compiled_funcs.push(FastBytecodeFunction::new(b.locals.clone(), fast_bytecode));
+                let all_codes: Vec<EqOps>  = merge_codes(&b.codes, &ext_compiled_code);
+                merged_funcs.push(all_codes.clone());
+
             },
         }
     }
+
+    // merged_funcs
 
     // それぞれのバイトコードと型スタックをhuman-friendryな形式で表示する
     return Ok(());
@@ -76,7 +79,7 @@ pub fn calc_type_stack(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
     return codes;
 }
 
-pub fn correspond_semantic_equations<'a>(codes: &'a Vec<CodePos<'a>>, compiled_codes: &'a Vec<ExtFastCodePos<'a>>) -> Vec<EqOps<'a>> {
+pub fn merge_codes<'a>(codes: &'a Vec<CodePos<'a>>, compiled_codes: &'a Vec<ExtFastCodePos<'a>>) -> Vec<EqOps<'a>> {
     // codesの前処理
     let mut m1: HashMap<u32, Vec<&CodePos>> = HashMap::new();
     let mut v1 = Vec::new();
@@ -108,8 +111,8 @@ pub fn correspond_semantic_equations<'a>(codes: &'a Vec<CodePos<'a>>, compiled_c
     for codepos in codes {
         let offset = codepos.offset;
         let e = EqOps{
-            b: m1.get(&offset).expect("not found m1.get(offset)"),
-            f: m2.get(&offset).expect("not found m2.get(offset)"),
+            b: m1.get(&offset).expect("not found m1.get(offset)").clone(),
+            f: m2.get(&offset).expect("not found m2.get(offset)").clone(),
         };
         all_codes.push(e);
     }
