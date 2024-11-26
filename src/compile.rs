@@ -3,6 +3,7 @@ use crate::core::function::{BytecodeFunction, Function, CodePos};
 use crate::core::module::Module;
 use anyhow::Result;
 
+// TODO: coreのBytecodeFunctionと統合できそう
 pub struct FastBytecodeFunction<'a> {
     pub locals: Vec<u8>,
     pub codes: Vec<FastCodePos<'a>>,
@@ -67,6 +68,7 @@ pub struct OpType {
     output: Vec<WasmType>,
 }
 
+// TODO: coreのCodePosと統合できそう
 #[derive(Clone)]
 pub struct FastCodePos<'a> {
     pub opcode: Operator<'a>,
@@ -74,25 +76,26 @@ pub struct FastCodePos<'a> {
     pub offset: u32,
 }
 
-impl<'a> FastBytecodeFunction<'a> {
-    pub fn construct(module: Module, funcs: &Vec<Function<>>) -> Result<Vec<FastBytecodeFunction<'a>>> { 
-        let mut compiled_funcs = Vec::new();
 
-        // funcsを関数ごとにループする
-        for func in funcs {
-            match func {
-                Function::ImportFunction(_) => continue,
-                Function::BytecodeFunction(b)=> {
-                    let fast_bytecode = Self::compile_fast_bytecode(module, b);
-                    compiled_funcs.push(fast_bytecode);
-                },
-            }
+pub fn compile_fast_bytecode<'a>(module: &'a Module<'a>, funcs: &'a Vec<Function<'a, >>) -> Result<Vec<FastBytecodeFunction<'a>>> { 
+    let mut compiled_funcs = Vec::new();
+
+    // funcsを関数ごとにループする
+    for func in funcs {
+        match func {
+            Function::ImportFunction(_) => continue,
+            Function::BytecodeFunction(b)=> {
+                let fast_bytecode = FastBytecodeFunction::compile_fast_bytecode(module, b);
+                compiled_funcs.push(fast_bytecode);
+            },
         }
-
-
-        return Ok(compiled_funcs);
     }
 
+
+    return Ok(compiled_funcs);
+}
+
+impl<'a> FastBytecodeFunction<'a> {
     fn emit_label(codepos: &CodePos<'a>, input: Vec<WasmType> , output: Vec<WasmType>) -> FastCodePos<'a> {
         let f = FastCodePos {
             opcode: codepos.opcode.clone(),
