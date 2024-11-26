@@ -129,7 +129,6 @@ impl<'a> FastBytecodeFunction<'a> {
         // 仮スタック
         // TODO: 多分stackにはコード位置も入る
         let mut stack: Vec<ValInfo> = Vec::new();
-        let mut label_stack: Vec<OpType> = Vec::new();
         let mut fast_bytecode: Vec<FastCodePos> = Vec::new();
 
         for codepos in &func.codes {
@@ -141,49 +140,41 @@ impl<'a> FastBytecodeFunction<'a> {
                 }
                 Operator::Block{ .. } => {
                     // skip_label
+                    // TODO: COPY_STACKをemitする
                 }
                 Operator::Loop{ .. } => {
                     // skip_label
                 }
-                Operator::If{ blockty} => {
+                Operator::If{ .. } => {
                 }
                 Operator::Else{ .. } => {
                 }
                 Operator::End{ .. } => {
                     // TODO: 挙動をちゃんと調べる
                 }
-                Operator::Br{relative_depth} => {
+                Operator::Br{..} => {
                     // [t1*, t*] -> [t2*]
-                    // label_stackの上からrelative_depthのところを取得
-                    label_stack.drain(label_stack.len()-1 - relative_depth as usize..).collect();
-                    let t = label_stack.pop().expect("label stack is empty");
-                    
-                    let i: Vec<WasmType> = t.input;
-                    let o: Vec<WasmType> = t.output;
+                    // NOTE: この位置では型スタックは変化しない
+                    let i: Vec<WasmType> = vec![];
+                    let o: Vec<WasmType> = vec![];
 
                     fast_bytecode.push(
                         Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
-                Operator::BrIf{relative_depth} => {
+                Operator::BrIf{..} => {
                     // [t1*, U32] -> [t2*]
-                    label_stack.drain(label_stack.len()-1 - relative_depth as usize..).collect();
-                    let t = label_stack.pop().expect("label stack is empty");
-                    
-                    let i: Vec<WasmType> = t.input.into_iter().chain(std::iter::once(WasmType::U32)).collect();
-                    let o: Vec<WasmType> = t.output;
+                    let i: Vec<WasmType> = vec![WasmType::U32];
+                    let o: Vec<WasmType> = vec![];
 
                     fast_bytecode.push(
                         Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
                     );
                 }
-                Operator::BrTable{targets} => {
+                Operator::BrTable{..} => {
                     // [t1*, t*, U32] -> [t2*]
-                    // label_stack.drain(label_stack.len()-1 - relative_depth as usize..).collect();
-                    let t = label_stack.pop().expect("label stack is empty");
-                    
-                    let i: Vec<WasmType> = t.input.into_iter().chain(std::iter::once(WasmType::U32)).collect();
-                    let o: Vec<WasmType> = t.output;
+                    let i: Vec<WasmType> = vec![WasmType::U32];
+                    let o: Vec<WasmType> = vec![];
 
                     fast_bytecode.push(
                         Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
@@ -290,8 +281,22 @@ impl<'a> FastBytecodeFunction<'a> {
                     );
                 }
                 Operator::TableGet{ .. } => {
+                    // [U32] -> [Any]
+                    let i = vec![WasmType::U32];
+                    let o = vec![WasmType::Any];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::TableSet{ .. } => {
+                    // [U32, Any] -> []
+                    let i = vec![WasmType::U32, WasmType::Any];
+                    let o = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
 
                 Operator::I32Load{ .. } | Operator::F32Load{ .. } | 
