@@ -74,23 +74,30 @@ pub struct FastCodePos<'a> {
     pub offset: u32,
 }
 
-impl<'a> FastBytecodeFunction<'a> {
-    pub fn construct(module: Module, funcs: &Vec<Function<>>) -> Result<Vec<FastBytecodeFunction<'a>>> { 
-        let mut compiled_funcs = Vec::new();
+pub fn compile_fast_bytecode_function<'a>(module: &'a Module, funcs: &'a Vec<Function<>>) -> Result<Vec<FastBytecodeFunction<'a>>> { 
+    let mut compiled_funcs = Vec::new();
 
-        // funcsを関数ごとにループする
-        for func in funcs {
-            match func {
-                Function::ImportFunction(_) => continue,
-                Function::BytecodeFunction(b)=> {
-                    let fast_bytecode = Self::compile_fast_bytecode(module, b);
-                    compiled_funcs.push(fast_bytecode);
-                },
-            }
+    // funcsを関数ごとにループする
+    for func in funcs {
+        match func {
+            Function::ImportFunction(_) => continue,
+            Function::BytecodeFunction(b)=> {
+                let fast_bytecode = FastBytecodeFunction::compile_fast_bytecode(module, b);
+                compiled_funcs.push(FastBytecodeFunction::new(b.locals.clone(), fast_bytecode));
+            },
         }
+    }
 
 
-        return Ok(compiled_funcs);
+    return Ok(compiled_funcs);
+}
+
+impl<'a> FastBytecodeFunction<'a> {
+    pub fn new(locals: Vec<u8>, codes: Vec<FastCodePos<'a>>) -> Self {
+        return FastBytecodeFunction{
+            locals: locals.clone(),
+            codes: codes,
+        };
     }
 
     fn emit_label(codepos: &CodePos<'a>, input: Vec<WasmType> , output: Vec<WasmType>) -> FastCodePos<'a> {
@@ -125,7 +132,7 @@ impl<'a> FastBytecodeFunction<'a> {
         return default_type;
     }
 
-    pub fn compile_fast_bytecode(module: &Module, func: &'a BytecodeFunction) {
+    pub fn compile_fast_bytecode(module: &Module, func: &'a BytecodeFunction) -> Vec<FastCodePos<'a>> {
         // 仮スタック
         // TODO: 多分stackにはコード位置も入る
         let mut stack: Vec<ValInfo> = Vec::new();
@@ -639,6 +646,8 @@ impl<'a> FastBytecodeFunction<'a> {
                 }
             }
         }
+
+        return fast_bytecode;
     }
 }
 
