@@ -6,20 +6,14 @@ use std::collections::HashMap;
 use camino::Utf8PathBuf;
 use anyhow::Result;
 
-// TODO: CodePosとFastCodePosを統合できれば2つも構造体いらん
-struct ExtCodePos<'a> {
-    codepos: CodePos<'a>,
-    type_stack: Vec<WasmType>,
-}
-
 struct ExtFastCodePos<'a> {
     codepos: FastCodePos<'a>,
     type_stack: Vec<WasmType>,
 }
 
 struct EqOps<'a> {
-    b: Vec<ExtCodePos<'a>>,
-    f: Vec<ExtFastCodePos<'a>>,
+    b: &'a Vec<&'a CodePos<'a>>,
+    f: &'a Vec<&'a ExtFastCodePos<'a>>,
 }
 
 pub fn main(path: Utf8PathBuf) -> Result<()> {
@@ -42,11 +36,11 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
                 let compiled_func = compile::compile_fast_bytecode_function(&m, &b).expect("Failed to compile funcs");
 
                 // 型スタックを計算
-                let fast_type_stack = calc_type_stack(compiled_func);
+                let ext_compiled_code = calc_type_stack(compiled_func);
 
                 // funcとcompiled_funcで同じオフセット同士を紐付ける
                 // NOTE: 一つのオフセットに対して複数の命令が入る場合がある
-                let map: HashMap<u32, EqOps>  = correspond_semantic_equations(b, compiled_func);
+                let all_codes: Vec<EqOps>  = correspond_semantic_equations(&b.codes, &ext_compiled_code);
                 
                 // let fast_bytecode = FastBytecodeFunction::compile_fast_bytecode(module, b);
                 // compiled_funcs.push(FastBytecodeFunction::new(b.locals.clone(), fast_bytecode));
@@ -82,12 +76,43 @@ pub fn calc_type_stack(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
     return codes;
 }
 
-pub fn correspond_semantic_equations(funcs: BytecodeFunction, compiled_funcs: FastBytecodeFunction) -> HashMap<u32, EqOps> {
-    let mut m1: HashMap<u32, Vec<ExtCodePos>> = HashMap::new();
-    for codepos in funcs.codes {
-
-        m1[&codepos.offset].push()
+pub fn correspond_semantic_equations<'a>(codes: &'a Vec<CodePos<'a>>, compiled_codes: &'a Vec<ExtFastCodePos<'a>>) -> Vec<EqOps<'a>> {
+    // codesの前処理
+    let mut m1: HashMap<u32, Vec<&CodePos>> = HashMap::new();
+    let mut v1 = Vec::new();
+    let mut now_offset = 0;
+    for codepos in codes {
+        if now_offset != codepos.offset {
+            m1.insert(now_offset, v1);
+            v1 = Vec::new();
+            now_offset = codepos.offset;
+        }
+        v1.push(codepos);
     }
 
-   return HashMap::new(); 
+    // compiled_codesの前処理
+    let mut m2: HashMap<u32, Vec<&ExtFastCodePos>> = HashMap::new();
+    let mut v2: Vec<&ExtFastCodePos> = Vec::new();
+    now_offset = 0;
+    for ext in compiled_codes {
+        if now_offset != ext.codepos.offset {
+            m2.insert(now_offset, v2);
+            v2 = Vec::new();
+            now_offset = ext.codepos.offset;
+        }
+        v2.push(ext);
+    }
+
+    // Vec<EqOps>の構築
+    let mut all_codes = Vec::new();
+    for codepos in codes {
+        let offset = codepos.offset;
+        let e = EqOps{
+            b: m1.get(&offset).expect("not found m1.get(offset)"),
+            f: m2.get(&offset).expect("not found m2.get(offset)"),
+        };
+        all_codes.push(e);
+    }
+
+   return all_codes; 
 }
