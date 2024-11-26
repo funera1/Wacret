@@ -27,7 +27,6 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     // wasmコードの型スタックを計算する
     let funcs = m.parse()?;
 
-
     let mut merged_funcs: Vec<Vec<EqOps>> = Vec::new();
     // 高速バイトコードを配列に詰める。このとき、高速バイトコードの各命令は、wasmコードの命令と等価な位置(index)へ格納する
     for func in funcs {
@@ -44,7 +43,6 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
                 // NOTE: 一つのオフセットに対して複数の命令が入る場合がある
                 let all_codes: Vec<EqOps>  = merge_codes(&b.codes, &ext_compiled_code);
                 merged_funcs.push(all_codes.clone());
-
             },
         }
     }
@@ -79,7 +77,7 @@ pub fn calc_type_stack(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
     return codes;
 }
 
-pub fn merge_codes<'a>(codes: &'a Vec<CodePos<'a>>, compiled_codes: &'a Vec<ExtFastCodePos<'a>>) -> Vec<EqOps<'a>> {
+pub fn merge_codes<'a>(codes: &'a Vec<CodePos<'a>>, compiled_codes: &'a Vec<ExtFastCodePos<'a>>) -> Vec<EqOps<'static>> {
     // codesの前処理
     let mut m1: HashMap<u32, Vec<&CodePos>> = HashMap::new();
     let mut v1 = Vec::new();
