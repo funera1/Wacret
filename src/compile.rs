@@ -14,7 +14,7 @@ pub struct FastBytecodeFunction<'a> {
 
 
 #[derive(Clone, Copy)]
-enum WasmType {
+pub enum WasmType {
     Any = 0,
     U8 = 1,
     U32 = 4,
@@ -74,22 +74,11 @@ pub struct FastCodePos<'a> {
     pub offset: u32,
 }
 
-pub fn compile_fast_bytecode_function<'a>(module: &'a Module, funcs: &'a Vec<Function<>>) -> Result<Vec<FastBytecodeFunction<'a>>> { 
-    let mut compiled_funcs = Vec::new();
 
-    // funcsを関数ごとにループする
-    for func in funcs {
-        match func {
-            Function::ImportFunction(_) => continue,
-            Function::BytecodeFunction(b)=> {
-                let fast_bytecode = FastBytecodeFunction::compile_fast_bytecode(module, b);
-                compiled_funcs.push(FastBytecodeFunction::new(b.locals.clone(), fast_bytecode));
-            },
-        }
-    }
-
-
-    return Ok(compiled_funcs);
+// NOTE: moduleに依存しているのでmoduleのメソッド関数にしても良いかも
+pub fn compile_fast_bytecode_function<'a>(module: &'a Module, func: &'a BytecodeFunction<>) -> Result<FastBytecodeFunction<'a>> { 
+    let fast_bytecode = FastBytecodeFunction::compile_fast_bytecode(module, func);
+    return Ok(FastBytecodeFunction::new(func.locals.clone(), fast_bytecode));
 }
 
 impl<'a> FastBytecodeFunction<'a> {
