@@ -13,9 +13,11 @@ struct ExtFastCodePos<'a> {
 }
 
 #[derive(Clone)]
-struct EqOps<'a> {
-    b: Vec<&'a CodePos<'a>>,
-    f: Vec<&'a ExtFastCodePos<'a>>,
+struct AbsCodePos<'a> {
+    // NOTE: vecで持ってるからややこしいが、あくまでこれは、あるoffsetについての等価なコード位置のもの
+    offset: u32,
+    codepos: Vec<CodePos<'a>>,
+    fast_codepos: Vec<ExtFastCodePos<'a>>,
 }
 
 pub fn main(path: Utf8PathBuf) -> Result<()> {
@@ -27,7 +29,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     // wasmコードの型スタックを計算する
     let funcs = m.parse()?;
 
-    let mut merged_funcs: Vec<Vec<EqOps>> = Vec::new();
+    let mut merged_funcs: Vec<Vec<AbsCodePos>> = Vec::new();
     // 高速バイトコードを配列に詰める。このとき、高速バイトコードの各命令は、wasmコードの命令と等価な位置(index)へ格納する
     for func in funcs {
         match func {
@@ -41,7 +43,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
 
                 // funcとcompiled_funcで同じオフセット同士を紐付ける
                 // NOTE: 一つのオフセットに対して複数の命令が入る場合がある
-                let all_codes: Vec<EqOps>  = merge_codes(&b.codes, &ext_compiled_code);
+                let all_codes: Vec<AbsCodePos>  = merge_codes(&b.codes, &ext_compiled_code);
                 merged_funcs.push(all_codes.clone());
             },
         }
@@ -77,9 +79,10 @@ pub fn calc_type_stack(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
     return codes;
 }
 
-pub fn merge_codes<'a>(codes: &'a Vec<CodePos<'a>>, compiled_codes: &'a Vec<ExtFastCodePos<'a>>) -> Vec<EqOps<'static>> {
+// TODO: clone多用しているが、そのcloneが適切か考え直す
+pub fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtFastCodePos<'a>>) -> Vec<AbsCodePos<'a>> {
     // codesの前処理
-    let mut m1: HashMap<u32, Vec<&CodePos>> = HashMap::new();
+    let mut m1: HashMap<u32, Vec<CodePos>> = HashMap::new();
     let mut v1 = Vec::new();
     let mut now_offset = 0;
     for codepos in codes {
@@ -88,12 +91,12 @@ pub fn merge_codes<'a>(codes: &'a Vec<CodePos<'a>>, compiled_codes: &'a Vec<ExtF
             v1 = Vec::new();
             now_offset = codepos.offset;
         }
-        v1.push(codepos);
+        v1.push(codepos.clone());
     }
 
     // compiled_codesの前処理
-    let mut m2: HashMap<u32, Vec<&ExtFastCodePos>> = HashMap::new();
-    let mut v2: Vec<&ExtFastCodePos> = Vec::new();
+    let mut m2: HashMap<u32, Vec<ExtFastCodePos>> = HashMap::new();
+    let mut v2: Vec<ExtFastCodePos> = Vec::new();
     now_offset = 0;
     for ext in compiled_codes {
         if now_offset != ext.codepos.offset {
@@ -101,16 +104,20 @@ pub fn merge_codes<'a>(codes: &'a Vec<CodePos<'a>>, compiled_codes: &'a Vec<ExtF
             v2 = Vec::new();
             now_offset = ext.codepos.offset;
         }
-        v2.push(ext);
+        v2.push(ext.clone());
     }
 
-    // Vec<EqOps>の構築
+    // Vec<AbsCodePos>の構築
     let mut all_codes = Vec::new();
     for codepos in codes {
         let offset = codepos.offset;
-        let e = EqOps{
-            b: m1.get(&offset).expect("not found m1.get(offset)").clone(),
-            f: m2.get(&offset).expect("not found m2.get(offset)").clone(),
+        let codepos = m1.get(&offset).expect("not found m1.get(offset)");
+        let fast_codepos = m2.get(&offset).expect("not found m2.get(offset)");
+
+        let e = AbsCodePos{
+            offset: offset,
+            codepos: codepos.clone(),
+            fast_codepos: fast_codepos.clone(),
         };
         all_codes.push(e);
     }
