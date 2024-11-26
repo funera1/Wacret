@@ -21,7 +21,9 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     let compiled_funcs = compile::compile_fast_bytecode(&m, &funcs).expect("Failed to compile fast bytecode");
     
     // 高速バイトコードから型スタックを計算する
-
+    for c in compiled_funcs {
+        let ext = compile::calc_type_stack(c);
+    }
 
     // 高速バイトコードを配列に詰める。このとき、高速バイトコードの各命令は、wasmコードの命令と等価な位置(index)へ格納する
     

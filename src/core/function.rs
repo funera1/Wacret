@@ -27,8 +27,29 @@ pub struct BytecodeFunction<'a> {
     func_body: &'a FunctionBody<'a>,
 }
 
+#[derive(Clone, Copy)]
+enum WasmType {
+    Any = 0,
+    U8 = 1,
+    U32 = 4,
+    U64 = 8,
+    U128 = 16,
+}
+
+#[derive(Clone)]
+pub struct OpType {
+    input: Vec<WasmType>,
+    output: Vec<WasmType>,
+}
+
 #[derive(Clone)]
 pub struct CodePos<'a> {
+    pub opcode: Operator<'a>,
+    pub optype: OpType,
+    pub offset: u32,
+}
+
+pub struct ExtCodePos<'a> {
     pub opcode: Operator<'a>,
     pub offset: u32,
     pub type_stack: Vec<u8>,

@@ -6,22 +6,21 @@ use anyhow::Result;
 // TODO: coreのBytecodeFunctionと統合できそう
 pub struct FastBytecodeFunction<'a> {
     pub locals: Vec<u8>,
-    pub codes: Vec<FastCodePos<'a>>,
-
+    pub codes: Vec<ExtFastCodePos<'a>>,
     // module: &'a Module<'a>,
     // else_blockty: BlockType,
     // func_body: &'a FunctionBody<'a>,
 }
 
 
-#[derive(Clone, Copy)]
-enum WasmType {
-    Any = 0,
-    U8 = 1,
-    U32 = 4,
-    U64 = 8,
-    U128 = 16,
-}
+// #[derive(Clone, Copy)]
+// enum WasmType {
+//     Any = 0,
+//     U8 = 1,
+//     U32 = 4,
+//     U64 = 8,
+//     U128 = 16,
+// }
 
 fn valtype_to_wasmtype(valtype: ValType) -> WasmType {
     match valtype {
@@ -62,18 +61,25 @@ impl ValInfo {
 }
 
 
-#[derive(Clone)]
-pub struct OpType {
-    input: Vec<WasmType>,
-    output: Vec<WasmType>,
-}
+// #[derive(Clone)]
+// pub struct OpType {
+//     input: Vec<WasmType>,
+//     output: Vec<WasmType>,
+// }
 
-// TODO: coreのCodePosと統合できそう
+// // TODO: coreのCodePosと統合できそう
+// #[derive(Clone)]
+// pub struct FastCodePos<'a> {
+//     pub opcode: Operator<'a>,
+//     pub optype: OpType,
+//     pub offset: u32,
+// }
+
+
 #[derive(Clone)]
-pub struct FastCodePos<'a> {
-    pub opcode: Operator<'a>,
-    pub optype: OpType,
-    pub offset: u32,
+pub struct ExtFastCodePos<'a> {
+    pub codepos: FastCodePos<'a>,
+    pub type_stack: Vec<WasmType>,
 }
 
 
@@ -565,3 +571,7 @@ impl<'a> FastBytecodeFunction<'a> {
     }
 }
 
+
+pub fn calc_type_stack(f: &FastBytecodeFunction) {
+
+}
