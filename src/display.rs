@@ -18,7 +18,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
 
 
     // wasmコードから高速バイトコードを生成する
-    let compiled_funcs = compile::compile_fast_bytecode(&funcs);
+    let compiled_funcs = compile::compile_fast_bytecode_function(&m, &funcs);
 
 
     // 高速バイトコードを配列に詰める。このとき、高速バイトコードの各命令は、wasmコードの命令と等価な位置(index)へ格納する
