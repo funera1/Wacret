@@ -36,22 +36,21 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
             Function::ImportFunction(_) => continue,
             Function::BytecodeFunction(b)=> {
                 // wasmコードから高速バイトコードを生成する
-                let compiled_func = compile::compile_fast_bytecode_function(&m, &b).expect("Failed to compile funcs");
+                let compiled_func = compile::compile_fast_bytecode_function(&m, b).expect("Failed to compile funcs");
 
                 // 型スタックを計算
                 let ext_compiled_code = calc_type_stack(compiled_func);
 
                 // funcとcompiled_funcで同じオフセット同士を紐付ける
                 // NOTE: 一つのオフセットに対して複数の命令が入る場合がある
-                let all_codes: Vec<AbsCodePos>  = merge_codes(&b.codes, &ext_compiled_code);
-                merged_funcs.push(all_codes.clone());
+                let all_codes: Vec<AbsCodePos> = merge_codes(&b.codes, &ext_compiled_code);
+                merged_funcs.push(all_codes);
             },
         }
     }
 
-    // merged_funcs
-
     // それぞれのバイトコードと型スタックをhuman-friendryな形式で表示する
+
     return Ok(());
 }
 

@@ -76,7 +76,7 @@ pub struct FastCodePos<'a> {
 
 
 // NOTE: moduleに依存しているのでmoduleのメソッド関数にしても良いかも
-pub fn compile_fast_bytecode_function<'a>(module: &'a Module, func: &'a BytecodeFunction<>) -> Result<FastBytecodeFunction<'a>> { 
+pub fn compile_fast_bytecode_function(module: &Module, func: &BytecodeFunction<>) -> Result<FastBytecodeFunction> { 
     let fast_bytecode = FastBytecodeFunction::compile_fast_bytecode(module, func);
     return Ok(FastBytecodeFunction::new(func.locals.clone(), fast_bytecode));
 }
