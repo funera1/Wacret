@@ -20,6 +20,10 @@ struct AbsCodePos<'a> {
     fast_codepos: Vec<ExtFastCodePos<'a>>,
 }
 
+pub fn print(funs: Vec<Vec<AbsCodePos>>) {
+
+}
+
 pub fn main(path: Utf8PathBuf) -> Result<()> {
     // pathからwasmコードを取得
     let buf: Vec<u8> = std::fs::read(&path).unwrap();
@@ -36,7 +40,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
             Function::ImportFunction(_) => continue,
             Function::BytecodeFunction(b)=> {
                 // wasmコードから高速バイトコードを生成する
-                let compiled_func = compile::compile_fast_bytecode_function(&m, b).expect("Failed to compile funcs");
+                let compiled_func = compile::compile_fast_bytecode_function(&m, &b).expect("Failed to compile funcs");
 
                 // 型スタックを計算
                 let ext_compiled_code = calc_type_stack(compiled_func);
@@ -50,6 +54,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     }
 
     // それぞれのバイトコードと型スタックをhuman-friendryな形式で表示する
+    print(merged_funcs);
 
     return Ok(());
 }
