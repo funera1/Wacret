@@ -40,7 +40,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
             Function::ImportFunction(_) => continue,
             Function::BytecodeFunction(b)=> {
                 // wasmコードから高速バイトコードを生成する
-                let compiled_func = compile::compile_fast_bytecode_function(&m, &b).expect("Failed to compile funcs");
+                let compiled_func = FastBytecodeFunction::new(&m, &b);
 
                 // 型スタックを計算
                 let ext_compiled_code = calc_type_stack(compiled_func);

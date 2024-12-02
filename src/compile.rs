@@ -3,15 +3,6 @@ use crate::core::function::{BytecodeFunction, Function, CodePos};
 use crate::core::module::Module;
 use anyhow::Result;
 
-pub struct FastBytecodeFunction<'a> {
-    pub locals: Vec<u8>,
-    pub codes: Vec<FastCodePos<'a>>,
-
-    // module: &'a Module<'a>,
-    // else_blockty: BlockType,
-    // func_body: &'a FunctionBody<'a>,
-}
-
 
 #[derive(Clone, Copy)]
 pub enum WasmType {
@@ -74,18 +65,20 @@ pub struct FastCodePos<'a> {
     pub offset: u32,
 }
 
+pub struct FastBytecodeFunction<'a> {
+    pub locals: Vec<u8>,
+    pub codes: Vec<FastCodePos<'a>>,
 
-// NOTE: moduleに依存しているのでmoduleのメソッド関数にしても良いかも
-pub fn compile_fast_bytecode_function(module: &Module, func: &BytecodeFunction<>) -> Result<FastBytecodeFunction> { 
-    let fast_bytecode = FastBytecodeFunction::compile_fast_bytecode(module, func);
-    return Ok(FastBytecodeFunction::new(func.locals.clone(), fast_bytecode));
+    // module: &'a Module<'a>,
+    // else_blockty: BlockType,
+    // func_body: &'a FunctionBody<'a>,
 }
 
 impl<'a> FastBytecodeFunction<'a> {
-    pub fn new(locals: Vec<u8>, codes: Vec<FastCodePos<'a>>) -> Self {
-        return FastBytecodeFunction{
-            locals: locals.clone(),
-            codes: codes,
+    pub fn new(module: &Module, func: &BytecodeFunction<'a>) -> Self { 
+        return FastBytecodeFunction {
+            locals: func.locals.clone(),
+            codes: Self::compile_fast_bytecode(module, &func.codes),
         };
     }
 
@@ -121,13 +114,13 @@ impl<'a> FastBytecodeFunction<'a> {
         return default_type;
     }
 
-    pub fn compile_fast_bytecode(module: &Module, func: &'a BytecodeFunction) -> Vec<FastCodePos<'a>> {
+    pub fn compile_fast_bytecode(module: &Module, codes: &Vec<CodePos<'a>>) -> Vec<FastCodePos<'a>> {
         // 仮スタック
         // TODO: 多分stackにはコード位置も入る
         let mut stack: Vec<ValInfo> = Vec::new();
         let mut fast_bytecode: Vec<FastCodePos> = Vec::new();
 
-        for codepos in &func.codes {
+        for codepos in codes {
             match codepos.opcode {
                 Operator::Unreachable => {
                 }
