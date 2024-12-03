@@ -26,35 +26,6 @@ struct AbsCodePos<'a> {
     fast_codepos: Vec<ExtFastCodePos<'a>>,
 }
 
-pub fn print_csv(funcs: Vec<Vec<AbsCodePos>>) {
-    // create file
-    let file = File::create("wasm.csv").expect("Failed to create file");
-    let mut w = BufWriter::new(file);
-    let _ = w.write_all(BOM);
-
-    let mut w= csv::WriterBuilder::new()
-                                .terminator(Terminator::CRLF)
-                                .from_writer(w);
-    
-    // print header
-    let _ = w.write_record(["standard code", "standard stack", "fast stack", "fast code"]);
-
-    // print content
-    for func in funcs {
-        for code in func {
-            // let standard_code = code.codepos[0].opcode;
-            let standard_stack = std::str::from_utf8(&code.codepos[0].type_stack)
-                                            .expect("Failed to convert standard stack to string");
-            // let fast_code = code.fast_codepos[0].codepos.opcode;
-            let fast_stack = &code.fast_codepos[0].type_stack
-                                                .iter()
-                                                .map(|e| e.to_string())
-                                                .collect::<Vec<_>>()
-                                                .join(", ");
-            let _ = w.write_record(["hoge", standard_stack, fast_stack, "hoge"]).expect("Failed to write csv");
-        }
-    }
-}
 
 pub fn main(path: Utf8PathBuf) -> Result<()> {
     // pathからwasmコードを取得
@@ -91,7 +62,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     return Ok(());
 }
 
-pub fn calc_type_stack(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
+fn calc_type_stack(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
     let mut codes = Vec::new();
 
     let mut type_stack = Vec::new();
@@ -116,7 +87,7 @@ pub fn calc_type_stack(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
 }
 
 // TODO: clone多用しているが、そのcloneが適切か考え直す
-pub fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtFastCodePos<'a>>) -> Vec<AbsCodePos<'a>> {
+fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtFastCodePos<'a>>) -> Vec<AbsCodePos<'a>> {
     // codesの前処理
     let mut m1: HashMap<u32, Vec<CodePos>> = HashMap::new();
     let mut v1 = Vec::new();
@@ -159,4 +130,34 @@ pub fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtFastCod
     }
 
    return all_codes; 
+}
+
+fn print_csv(funcs: Vec<Vec<AbsCodePos>>) {
+    // create file
+    let file = File::create("wasm.csv").expect("Failed to create file");
+    let mut w = BufWriter::new(file);
+    let _ = w.write_all(BOM);
+
+    let mut w= csv::WriterBuilder::new()
+                                .terminator(Terminator::CRLF)
+                                .from_writer(w);
+    
+    // print header
+    let _ = w.write_record(["standard code", "standard stack", "fast stack", "fast code"]);
+
+    // print content
+    for func in funcs {
+        for code in func {
+            // let standard_code = code.codepos[0].opcode;
+            let standard_stack = std::str::from_utf8(&code.codepos[0].type_stack)
+                                            .expect("Failed to convert standard stack to string");
+            // let fast_code = code.fast_codepos[0].codepos.opcode;
+            let fast_stack = &code.fast_codepos[0].type_stack
+                                                .iter()
+                                                .map(|e| e.to_string())
+                                                .collect::<Vec<_>>()
+                                                .join(", ");
+            let _ = w.write_record(["hoge", standard_stack, fast_stack, "hoge"]).expect("Failed to write csv");
+        }
+    }
 }
