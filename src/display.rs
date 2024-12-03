@@ -28,6 +28,28 @@ struct AbsCodePos<'a> {
 
 
 impl<'a> AbsCodePos<'a> {
+    fn to_string_standard_code(&self) -> Vec<String> {
+        let codepos = &self.codepos;
+
+        let mut result = vec![];
+        for code in codepos {
+            result.push(code.opcode.to_string());
+        }
+
+        return result;
+    }
+
+    fn to_string_fast_code(&self) -> Vec<String> {
+        let codepos = &self.fast_codepos;
+
+        let mut result = vec![];
+        for code in codepos {
+            result.push(code.codepos.opcode.to_string());
+        }
+
+        return result;
+    }
+
     fn to_string_standard_stack(&self) -> Vec<String> {
         let codepos = &self.codepos;
 
@@ -195,7 +217,7 @@ fn print_csv(funcs: Vec<Vec<AbsCodePos>>) {
                                 .from_writer(w);
     
     // print header
-    let _ = w.write_record(["offset", "standard code", "standard stack", "fast stack", "fast code"]);
+    let _ = w.write_record(["offset", "standard code", "standard stack", "fast code", "fast stack"]);
 
     // print content
     for func in funcs {
@@ -209,21 +231,19 @@ fn print_csv(funcs: Vec<Vec<AbsCodePos>>) {
             contents[0][0] = &offset_str;
 
             // standard
+            let standard_codes = code.to_string_standard_code();
             let standard_stacks = code.to_string_standard_stack();
             for (i, code) in code.codepos.iter().enumerate() {
-                let standard_code = code.opcode.clone();
-                contents[i][1] = "hoge";
+                contents[i][1] = standard_codes[i].as_str();
                 contents[i][2] = standard_stacks[i].as_str();
             }
 
             // fast
+            let fast_codes = code.to_string_fast_code();
             let fast_stacks = code.to_string_fast_stack();
             for (i, code) in code.fast_codepos.iter().enumerate() {
-                let fast_code = code.codepos.opcode.clone();
-
-                // TODO: fast_stacksを使うのをやめる
-                contents[i][3] = fast_stacks[i].as_str();
-                contents[i][4] = "hoge";
+                contents[i][3] = fast_codes[i].as_str();
+                contents[i][4] = fast_stacks[i].as_str();
             }
 
             // offsetを出力

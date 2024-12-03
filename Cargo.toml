@@ -14,4 +14,4 @@ env_logger = "0.11.5"
 log = "0.4.22"
 strum = "0.26.3"
 strum_macros = "0.26.4"
-wasmparser = "0.219.0"
+wasmparser = { git = "https://github.com/funera1/wasm-tools", branch = "feature/display-operator" }
