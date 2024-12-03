@@ -42,11 +42,16 @@ pub fn print_csv(funcs: Vec<Vec<AbsCodePos>>) {
     // print content
     for func in funcs {
         for code in func {
-            let standard_code = code.codepos[0].opcode;
-            let standard_stack = code.codepos[0].type_stack;
-            let fast_code = code.fast_codepos[0].codepos.opcode;
-            let fast_stack = code.fast_codepos[0].type_stack;
-            let _ = w.write_record([standard_code, standard_stack]).expect("Failed to write csv");
+            // let standard_code = code.codepos[0].opcode;
+            let standard_stack = std::str::from_utf8(&code.codepos[0].type_stack)
+                                            .expect("Failed to convert standard stack to string");
+            // let fast_code = code.fast_codepos[0].codepos.opcode;
+            let fast_stack = &code.fast_codepos[0].type_stack
+                                                .iter()
+                                                .map(|e| e.to_string())
+                                                .collect::<Vec<_>>()
+                                                .join(", ");
+            let _ = w.write_record(["hoge", standard_stack, fast_stack, "hoge"]).expect("Failed to write csv");
         }
     }
 }

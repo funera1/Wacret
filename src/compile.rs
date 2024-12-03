@@ -2,15 +2,28 @@ use wasmparser::{FunctionBody, Operator, ValType, FuncType, BlockType};
 use crate::core::function::{BytecodeFunction, Function, CodePos};
 use crate::core::module::Module;
 use anyhow::Result;
+use strum_macros::{Display, EnumString};
 
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, EnumString)]
 pub enum WasmType {
     Any = 0,
     U8 = 1,
     U32 = 4,
     U64 = 8,
     U128 = 16,
+}
+
+impl WasmType {
+    pub fn to_string(&self) -> &str {
+        match self {
+            WasmType::Any => return "Any",
+            WasmType::U8 => return "U8",
+            WasmType::U32 => return "U32",
+            WasmType::U64 => return "U64",
+            WasmType::U128 => return "U128",
+        }
+    }
 }
 
 fn valtype_to_wasmtype(valtype: &ValType) -> WasmType {
