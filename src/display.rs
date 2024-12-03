@@ -2,9 +2,15 @@ use crate::core::function::{BytecodeFunction, Function, CodePos};
 use crate::core::module;
 use crate::compile::{self, FastBytecodeFunction, FastCodePos, WasmType};
 use std::collections::HashMap;
+use std::io::{BufWriter, Write};
+use std::fs::File;
 
 use camino::Utf8PathBuf;
 use anyhow::Result;
+use csv::Terminator;
+
+// Byte order mark
+const BOM: &[u8; 3] = &[0xEF, 0xBB, 0xBF]; // UTF-8
 
 #[derive(Clone)]
 struct ExtFastCodePos<'a> {
@@ -20,8 +26,29 @@ struct AbsCodePos<'a> {
     fast_codepos: Vec<ExtFastCodePos<'a>>,
 }
 
-pub fn print(funs: Vec<Vec<AbsCodePos>>) {
+pub fn print_csv(funcs: Vec<Vec<AbsCodePos>>) {
+    // create file
+    let file = File::create("wasm.csv").expect("Failed to create file");
+    let mut w = BufWriter::new(file);
+    let _ = w.write_all(BOM);
 
+    let mut w= csv::WriterBuilder::new()
+                                .terminator(Terminator::CRLF)
+                                .from_writer(w);
+    
+    // print header
+    let _ = w.write_record(["standard code", "standard stack", "fast stack", "fast code"]);
+
+    // print content
+    for func in funcs {
+        for code in func {
+            let standard_code = code.codepos[0].opcode;
+            let standard_stack = code.codepos[0].type_stack;
+            let fast_code = code.fast_codepos[0].codepos.opcode;
+            let fast_stack = code.fast_codepos[0].type_stack;
+            let _ = w.write_record([standard_code, standard_stack]).expect("Failed to write csv");
+        }
+    }
 }
 
 pub fn main(path: Utf8PathBuf) -> Result<()> {
@@ -54,7 +81,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     }
 
     // それぞれのバイトコードと型スタックをhuman-friendryな形式で表示する
-    print(merged_funcs);
+    print_csv(merged_funcs);
 
     return Ok(());
 }
