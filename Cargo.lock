@@ -143,6 +143,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
 
 [[package]]
+name = "cmp"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4292b48ad12f62c0ecb53d47c5542fb7a938171f536458fc52ceb97726a54cd"
+
+[[package]]
 name = "colorchoice"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -414,6 +420,7 @@ dependencies = [
  "byteorder",
  "camino",
  "clap",
+ "cmp",
  "csv",
  "env_logger",
  "log",

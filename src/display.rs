@@ -26,6 +26,36 @@ struct AbsCodePos<'a> {
     fast_codepos: Vec<ExtFastCodePos<'a>>,
 }
 
+impl<'a> AbsCodePos<'a> {
+    fn to_string_standard_stack(&self) -> Vec<String> {
+        let codepos = &self.codepos;
+
+        let mut result = vec![];
+        for code in codepos {
+            let standard_stack = String::from_utf8(code.type_stack.clone())
+                                            .expect("Failed to convert standard stack to string");
+            result.push(standard_stack);
+        }
+
+        return result;
+    }
+
+    fn to_string_fast_stack(&self) -> Vec<String> {
+        let fast_codepos = &self.fast_codepos;
+
+        let mut result = vec![];
+        for code in fast_codepos {
+            let fast_stack = code.type_stack
+                                                .iter()
+                                                .map(|e| e.to_string())
+                                                .collect::<Vec<_>>()
+                                                .join(", ");
+            result.push(fast_stack);
+        }
+        return result;
+    }
+}
+
 
 pub fn main(path: Utf8PathBuf) -> Result<()> {
     // pathからwasmコードを取得
@@ -118,13 +148,25 @@ fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtFastCodePos
     let mut all_codes = Vec::new();
     for codepos in codes {
         let offset = codepos.offset;
-        let codepos = m1.get(&offset).expect("not found m1.get(offset)");
-        let fast_codepos = m2.get(&offset).expect("not found m2.get(offset)");
+
+        // codepos取得
+        let codepos;
+        match m1.get(&offset) {
+            None => codepos = Vec::new(),
+            Some(content) => codepos = content.clone(),
+        }
+
+        // fast_codepos取得
+        let fast_codepos;
+        match m2.get(&offset) {
+            None => fast_codepos = Vec::new(),
+            Some(content) => fast_codepos = content.clone(),
+        }
 
         let e = AbsCodePos{
             offset: offset,
-            codepos: codepos.clone(),
-            fast_codepos: fast_codepos.clone(),
+            codepos: codepos,
+            fast_codepos: fast_codepos,
         };
         all_codes.push(e);
     }
@@ -143,21 +185,44 @@ fn print_csv(funcs: Vec<Vec<AbsCodePos>>) {
                                 .from_writer(w);
     
     // print header
-    let _ = w.write_record(["standard code", "standard stack", "fast stack", "fast code"]);
+    let _ = w.write_record(["offset", "standard code", "standard stack", "fast stack", "fast code"]);
 
     // print content
     for func in funcs {
         for code in func {
-            // let standard_code = code.codepos[0].opcode;
-            let standard_stack = std::str::from_utf8(&code.codepos[0].type_stack)
-                                            .expect("Failed to convert standard stack to string");
-            // let fast_code = code.fast_codepos[0].codepos.opcode;
-            let fast_stack = &code.fast_codepos[0].type_stack
-                                                .iter()
-                                                .map(|e| e.to_string())
-                                                .collect::<Vec<_>>()
-                                                .join(", ");
-            let _ = w.write_record(["hoge", standard_stack, fast_stack, "hoge"]).expect("Failed to write csv");
+            // TODO: vecの管理をどうにかする
+            let mut contents = vec![["", "", "", "", ""]; std::cmp::max(code.codepos.len(), code.fast_codepos.len())];
+            if contents.len() == 0 {
+                continue;
+            }
+            let offset_str = &(code.offset.to_string());
+            contents[0][0] = &offset_str;
+
+            // standard
+            for (i, code) in code.codepos.iter().enumerate() {
+                let standard_code = code.opcode.clone();
+                let standard_stack = std::str::from_utf8(&code.type_stack)
+                                                .expect("Failed to convert standard stack to string");
+                contents[i][1] = "hoge";
+                contents[i][2] = standard_stack;
+            }
+
+            // fast
+            let fast_stacks = code.to_string_fast_stack();
+            for (i, code) in code.fast_codepos.iter().enumerate() {
+                let fast_code = code.codepos.opcode.clone();
+
+                // TODO: fast_stacksを使うのをやめる
+                contents[i][3] = fast_stacks[i].as_str();
+                contents[i][4] = "hoge";
+            }
+
+            // offsetを出力
+
+            // 
+            for c in contents {
+                let _ = w.write_record(c).expect("Failed to write csv");
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ use anyhow::Result;
 use strum_macros::{Display, EnumString};
 
 
+#[repr(u8)]
 #[derive(Clone, Copy, EnumString)]
 pub enum WasmType {
     Any = 0,

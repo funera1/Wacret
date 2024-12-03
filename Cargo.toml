@@ -8,6 +8,7 @@ anyhow = "1.0.89"
 byteorder = "1.5.0"
 camino = "1.1.9"
 clap = { version = "4.5.20", features = ["derive"] }
+cmp = "0.1.0"
 csv = "1.3.1"
 env_logger = "0.11.5"
 log = "0.4.22"
