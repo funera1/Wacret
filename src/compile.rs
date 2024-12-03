@@ -35,11 +35,11 @@ fn valtype_to_wasmtype(valtype: &ValType) -> WasmType {
     }
 }
 
-fn u8_to_wasmtype(num: u8) -> WasmType {
+pub fn u8_to_wasmtype(num: u8) -> WasmType {
     match num {
-        4 => return WasmType::U32,
-        8 => return WasmType::U64,
-        16 => return WasmType::U128,
+        1 => return WasmType::U32,
+        2 => return WasmType::U64,
+        4 => return WasmType::U128,
         _ => return WasmType::Any,
     }
 }

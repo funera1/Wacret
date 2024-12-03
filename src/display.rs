@@ -1,6 +1,6 @@
 use crate::core::function::{BytecodeFunction, Function, CodePos};
 use crate::core::module;
-use crate::compile::{self, FastBytecodeFunction, FastCodePos, WasmType};
+use crate::compile::{self, FastBytecodeFunction, FastCodePos, WasmType, u8_to_wasmtype};
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};
 use std::fs::File;
@@ -26,15 +26,25 @@ struct AbsCodePos<'a> {
     fast_codepos: Vec<ExtFastCodePos<'a>>,
 }
 
+
 impl<'a> AbsCodePos<'a> {
     fn to_string_standard_stack(&self) -> Vec<String> {
         let codepos = &self.codepos;
 
         let mut result = vec![];
         for code in codepos {
-            let standard_stack = String::from_utf8(code.type_stack.clone())
-                                            .expect("Failed to convert standard stack to string");
-            result.push(standard_stack);
+            // TODO: 実装が冗長なので治す
+            let standard_stack = code.type_stack
+                                            .iter()
+                                            .map(|e| u8_to_wasmtype(*e))
+                                            .collect::<Vec<_>>();
+
+            let standard_stack = standard_stack
+                                        .iter()
+                                        .map(|e| e.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(", ");
+            result.push(format!("[{}]", standard_stack));
         }
 
         return result;
@@ -46,11 +56,11 @@ impl<'a> AbsCodePos<'a> {
         let mut result = vec![];
         for code in fast_codepos {
             let fast_stack = code.type_stack
-                                                .iter()
-                                                .map(|e| e.to_string())
-                                                .collect::<Vec<_>>()
-                                                .join(", ");
-            result.push(fast_stack);
+                                        .iter()
+                                        .map(|e| e.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(", ");
+            result.push(format!("[{}]", fast_stack));
         }
         return result;
     }
@@ -199,12 +209,11 @@ fn print_csv(funcs: Vec<Vec<AbsCodePos>>) {
             contents[0][0] = &offset_str;
 
             // standard
+            let standard_stacks = code.to_string_standard_stack();
             for (i, code) in code.codepos.iter().enumerate() {
                 let standard_code = code.opcode.clone();
-                let standard_stack = std::str::from_utf8(&code.type_stack)
-                                                .expect("Failed to convert standard stack to string");
                 contents[i][1] = "hoge";
-                contents[i][2] = standard_stack;
+                contents[i][2] = standard_stacks[i].as_str();
             }
 
             // fast
