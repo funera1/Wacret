@@ -126,7 +126,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
                 let compiled_func = FastBytecodeFunction::new(&m, &b);
 
                 // 型スタックを計算
-                let ext_compiled_code = calc_type_stack(compiled_func);
+                let ext_compiled_code = ext_fast_bytecode(compiled_func);
 
                 // funcとcompiled_funcで同じオフセット同士を紐付ける
                 // NOTE: 一つのオフセットに対して複数の命令が入る場合がある
@@ -142,7 +142,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     return Ok(());
 }
 
-fn calc_type_stack(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
+fn ext_fast_bytecode(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
     let mut codes = Vec::new();
 
     let mut type_stack = Vec::new();
