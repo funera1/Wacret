@@ -92,7 +92,7 @@ impl<'a> CompiledBytecodeFunction<'a> {
     pub fn new_standard_code(module: &Module, func: &BytecodeFunction<'a>) -> Self { 
         return Self {
             locals: func.locals.clone(),
-            codes: Self::compile_fast_bytecode(module, &func.codes),
+            codes: Self::compile_standard_bytecode(module, &func.codes),
         };
     }
 
@@ -672,24 +672,56 @@ impl<'a> CompiledBytecodeFunction<'a> {
         for codepos in codes {
             match codepos.opcode {
                 Operator::Unreachable => {
+                    let i: Vec<WasmType> = vec![];
+                    let o: Vec<WasmType> = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::Nop => {
                     // skip_label
+                    let i: Vec<WasmType> = vec![];
+                    let o: Vec<WasmType> = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::Block{ .. } => {
                     // skip_label
                     // TODO: COPY_STACKをemitする
+                    let i: Vec<WasmType> = vec![];
+                    let o: Vec<WasmType> = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::Loop{ .. } => {
                     // skip_label
+                    let i: Vec<WasmType> = vec![];
+                    let o: Vec<WasmType> = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::If{ blockty } => {
+                    let i: Vec<WasmType> = vec![];
+                    let o: Vec<WasmType> = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
+
                     else_blockty = blockty;
                 }
                 Operator::Else{ .. } => {
                     let i;
                     let o;
 
+                    // TODO: 多分この処理間違っている
                     match else_blockty {
                         BlockType::Empty => {
                             i = vec![];
@@ -702,8 +734,6 @@ impl<'a> CompiledBytecodeFunction<'a> {
                         BlockType::FuncType(type_idx) => {
                             // 関数型を持ってくる
                             let func_type = module.get_type_by_type(type_idx);
-
-                            // 関数型の逆操作をする
                             i = func_type.params()
                                          .iter()
                                          .map(|e| valtype_to_wasmtype(e))
@@ -759,6 +789,12 @@ impl<'a> CompiledBytecodeFunction<'a> {
                 }
                 Operator::Return{ .. } => {
                     // TODO: ほんとにbreakで良いのか確認
+                    let i: Vec<WasmType> = vec![];
+                    let o: Vec<WasmType> = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::Call{ function_index } => {
                     // [Args*] -> [Rets*]
@@ -823,7 +859,12 @@ impl<'a> CompiledBytecodeFunction<'a> {
                     // [] -> [Any]
                     // skip_label
                     // local_indexの型をstackにpushする
-                    stack.push(ValInfo::new(SpaceKind::Static));
+                    let i = vec![];
+                    let o = vec![WasmType::Any];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::LocalSet{ .. } => {
                     // [Any] -> []
@@ -936,7 +977,12 @@ impl<'a> CompiledBytecodeFunction<'a> {
                 Operator::I32Const{ .. } | Operator::F32Const{ .. } |
                 Operator::I64Const{ .. } | Operator::F64Const{ .. } => {
                     // skip_label
-                    stack.push(ValInfo::new(SpaceKind::Static));
+                    let i = vec![];
+                    let o = vec![WasmType::Any];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
 
                 Operator::I32Eqz{ .. } => {
