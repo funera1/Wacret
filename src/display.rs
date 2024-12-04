@@ -15,6 +15,7 @@ const BOM: &[u8; 3] = &[0xEF, 0xBB, 0xBF]; // UTF-8
 #[derive(Clone)]
 struct ExtFastCodePos<'a> {
     codepos: FastCodePos<'a>,
+    position_stack: Vec<u32>,
     type_stack: Vec<WasmType>,
 }
 
@@ -72,7 +73,22 @@ impl<'a> AbsCodePos<'a> {
         return result;
     }
 
-    fn to_string_fast_stack(&self) -> Vec<String> {
+    fn to_string_fast_position_stack(&self) -> Vec<String> {
+        let fast_codepos = &self.fast_codepos;
+
+        let mut result = vec![];
+        for code in fast_codepos {
+            let fast_stack = code.position_stack
+                                        .iter()
+                                        .map(|e| e.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(", ");
+            result.push(format!("[{}]", fast_stack));
+        }
+        return result;
+    }
+
+    fn to_string_fast_type_stack(&self) -> Vec<String> {
         let fast_codepos = &self.fast_codepos;
 
         let mut result = vec![];
@@ -130,20 +146,24 @@ fn calc_type_stack(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
     let mut codes = Vec::new();
 
     let mut type_stack = Vec::new();
+    let mut position_stack = Vec::new();
     for codepos in func.codes {
         let optype = &codepos.optype;
         // pop
         for _ in 0..optype.input.len() {
+            position_stack.pop();
             type_stack.pop();
         }
         // push
         for i in 0..optype.output.len() {
+            position_stack.push(codepos.offset);
             type_stack.push(optype.output[i]);
         }
 
         codes.push(
             ExtFastCodePos{
                 codepos: codepos, 
+                position_stack: position_stack.clone(),
                 type_stack: type_stack.clone(),
         });
     }
@@ -246,7 +266,7 @@ fn print_csv(import_func_len: u32, funcs: Vec<Vec<AbsCodePos>>) {
 
             // fast
             let fast_codes = code.to_string_fast_code();
-            let fast_stacks = code.to_string_fast_stack();
+            let fast_stacks = code.to_string_fast_position_stack();
             for (i, code) in code.fast_codepos.iter().enumerate() {
                 contents[i][4] = fast_codes[i].as_str();
                 contents[i][5] = fast_stacks[i].as_str();
