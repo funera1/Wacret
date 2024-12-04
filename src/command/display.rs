@@ -24,18 +24,18 @@ struct ExtCompiledCodePos<'a> {
 struct AbsCodePos<'a> {
     // NOTE: vecで持ってるからややこしいが、あくまでこれは、あるoffsetについての等価なコード位置のもの
     offset: u32,
-    codepos: Vec<CodePos<'a>>,
+    standard_codepos: Vec<ExtCompiledCodePos<'a>>,
     fast_codepos: Vec<ExtCompiledCodePos<'a>>,
 }
 
 
 impl<'a> AbsCodePos<'a> {
     fn to_string_standard_code(&self) -> Vec<String> {
-        let codepos = &self.codepos;
+        let codepos = &self.standard_codepos;
 
         let mut result = vec![];
         for code in codepos {
-            result.push(code.opcode.to_string());
+            result.push(code.codepos.opcode.to_string());
         }
 
         return result;
@@ -52,18 +52,28 @@ impl<'a> AbsCodePos<'a> {
         return result;
     }
 
-    fn to_string_standard_stack(&self) -> Vec<String> {
-        let codepos = &self.codepos;
+    fn to_string_standard_position_stack(&self) -> Vec<String> {
+        let codepos = &self.standard_codepos;
 
         let mut result = vec![];
         for code in codepos {
-            // TODO: 実装が冗長なので治す
-            let standard_stack = code.type_stack
-                                            .iter()
-                                            .map(|e| u8_to_wasmtype(*e))
-                                            .collect::<Vec<_>>();
+            let standard_stack = code.position_stack
+                                        .iter()
+                                        .map(|e| e.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(", ");
+            result.push(format!("[{}]", standard_stack));
+        }
 
-            let standard_stack = standard_stack
+        return result;
+    }
+
+    fn to_string_standard_type_stack(&self) -> Vec<String> {
+        let codepos = &self.standard_codepos;
+
+        let mut result = vec![];
+        for code in codepos {
+            let standard_stack = code.type_stack
                                         .iter()
                                         .map(|e| e.to_string())
                                         .collect::<Vec<_>>()
@@ -124,6 +134,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
             Function::ImportFunction(_) => import_func_len += 1,
             Function::BytecodeFunction(b)=> {
                 // wasmコードから高速バイトコードを生成する
+                // TODO: standard_funcかcore.funcの型スタックと同じかチェックしたい
                 let standard_func = CompiledBytecodeFunction::new_standard_code(&m, &b);
                 let fast_func = CompiledBytecodeFunction::new_fast_code(&m, &b);
 
@@ -133,7 +144,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
 
                 // funcとcompiled_funcで同じオフセット同士を紐付ける
                 // NOTE: 一つのオフセットに対して複数の命令が入る場合がある
-                let all_codes: Vec<AbsCodePos> = merge_codes(&b.codes, &ext_standard_code);
+                let all_codes: Vec<AbsCodePos> = merge_codes_v2(&ext_standard_code, &ext_fast_code);
                 merged_funcs.push(all_codes);
             },
         }
@@ -143,6 +154,63 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     print_csv(import_func_len, merged_funcs);
 
     return Ok(());
+}
+
+fn merge_codes_v2<'a>(code1: &Vec<ExtCompiledCodePos<'a>>, code2: &Vec<ExtCompiledCodePos<'a>>) -> Vec<AbsCodePos<'a>> {
+    // codesの前処理
+    let mut m1: HashMap<u32, Vec<ExtCompiledCodePos>> = HashMap::new();
+    let mut v1 = Vec::new();
+    let mut now_offset = 0;
+    for ext in code1 {
+        if now_offset != ext.codepos.offset {
+            m1.insert(now_offset, v1);
+            v1 = Vec::new();
+            now_offset = ext.codepos.offset;
+        }
+        v1.push(ext.clone());
+    }
+
+    // compiled_codesの前処理
+    let mut m2: HashMap<u32, Vec<ExtCompiledCodePos>> = HashMap::new();
+    let mut v2: Vec<ExtCompiledCodePos> = Vec::new();
+    now_offset = 0;
+    for ext in code2 {
+        if now_offset != ext.codepos.offset {
+            m2.insert(now_offset, v2);
+            v2 = Vec::new();
+            now_offset = ext.codepos.offset;
+        }
+        v2.push(ext.clone());
+    }
+
+    // Vec<AbsCodePos>の構築
+    let mut all_codes = Vec::new();
+    for codepos in code1 {
+        let offset = codepos.codepos.offset;
+
+        // codepos取得
+        let codepos;
+        match m1.get(&offset) {
+            None => codepos = Vec::new(),
+            Some(content) => codepos = content.clone(),
+        }
+
+        // fast_codepos取得
+        let fast_codepos;
+        match m2.get(&offset) {
+            None => fast_codepos = Vec::new(),
+            Some(content) => fast_codepos = content.clone(),
+        }
+
+        let e = AbsCodePos{
+            offset: offset,
+            standard_codepos: codepos,
+            fast_codepos: fast_codepos,
+        };
+        all_codes.push(e);
+    }
+
+   return all_codes; 
 }
 
 fn ext_compiled_bytecode(func: CompiledBytecodeFunction<'_>) -> Vec<ExtCompiledCodePos> {
@@ -174,62 +242,62 @@ fn ext_compiled_bytecode(func: CompiledBytecodeFunction<'_>) -> Vec<ExtCompiledC
 }
 
 // TODO: clone多用しているが、そのcloneが適切か考え直す
-fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtCompiledCodePos<'a>>) -> Vec<AbsCodePos<'a>> {
-    // codesの前処理
-    let mut m1: HashMap<u32, Vec<CodePos>> = HashMap::new();
-    let mut v1 = Vec::new();
-    let mut now_offset = 0;
-    for codepos in codes {
-        if now_offset != codepos.offset {
-            m1.insert(now_offset, v1);
-            v1 = Vec::new();
-            now_offset = codepos.offset;
-        }
-        v1.push(codepos.clone());
-    }
+// fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtCompiledCodePos<'a>>) -> Vec<AbsCodePos<'a>> {
+//     // codesの前処理
+//     let mut m1: HashMap<u32, Vec<CodePos>> = HashMap::new();
+//     let mut v1 = Vec::new();
+//     let mut now_offset = 0;
+//     for codepos in codes {
+//         if now_offset != codepos.offset {
+//             m1.insert(now_offset, v1);
+//             v1 = Vec::new();
+//             now_offset = codepos.offset;
+//         }
+//         v1.push(codepos.clone());
+//     }
 
-    // compiled_codesの前処理
-    let mut m2: HashMap<u32, Vec<ExtCompiledCodePos>> = HashMap::new();
-    let mut v2: Vec<ExtCompiledCodePos> = Vec::new();
-    now_offset = 0;
-    for ext in compiled_codes {
-        if now_offset != ext.codepos.offset {
-            m2.insert(now_offset, v2);
-            v2 = Vec::new();
-            now_offset = ext.codepos.offset;
-        }
-        v2.push(ext.clone());
-    }
+//     // compiled_codesの前処理
+//     let mut m2: HashMap<u32, Vec<ExtCompiledCodePos>> = HashMap::new();
+//     let mut v2: Vec<ExtCompiledCodePos> = Vec::new();
+//     now_offset = 0;
+//     for ext in compiled_codes {
+//         if now_offset != ext.codepos.offset {
+//             m2.insert(now_offset, v2);
+//             v2 = Vec::new();
+//             now_offset = ext.codepos.offset;
+//         }
+//         v2.push(ext.clone());
+//     }
 
-    // Vec<AbsCodePos>の構築
-    let mut all_codes = Vec::new();
-    for codepos in codes {
-        let offset = codepos.offset;
+//     // Vec<AbsCodePos>の構築
+//     let mut all_codes = Vec::new();
+//     for codepos in codes {
+//         let offset = codepos.offset;
 
-        // codepos取得
-        let codepos;
-        match m1.get(&offset) {
-            None => codepos = Vec::new(),
-            Some(content) => codepos = content.clone(),
-        }
+//         // codepos取得
+//         let codepos;
+//         match m1.get(&offset) {
+//             None => codepos = Vec::new(),
+//             Some(content) => codepos = content.clone(),
+//         }
 
-        // fast_codepos取得
-        let fast_codepos;
-        match m2.get(&offset) {
-            None => fast_codepos = Vec::new(),
-            Some(content) => fast_codepos = content.clone(),
-        }
+//         // fast_codepos取得
+//         let fast_codepos;
+//         match m2.get(&offset) {
+//             None => fast_codepos = Vec::new(),
+//             Some(content) => fast_codepos = content.clone(),
+//         }
 
-        let e = AbsCodePos{
-            offset: offset,
-            codepos: codepos,
-            fast_codepos: fast_codepos,
-        };
-        all_codes.push(e);
-    }
+//         let e = AbsCodePos{
+//             offset: offset,
+//             codepos: codepos,
+//             fast_codepos: fast_codepos,
+//         };
+//         all_codes.push(e);
+//     }
 
-   return all_codes; 
-}
+//    return all_codes; 
+// }
 
 fn print_csv(import_func_len: u32, funcs: Vec<Vec<AbsCodePos>>) {
     // create file
@@ -249,7 +317,7 @@ fn print_csv(import_func_len: u32, funcs: Vec<Vec<AbsCodePos>>) {
     for (fidx, func) in funcs.iter().enumerate() {
         for code in func {
             // TODO: vecの管理をどうにかする
-            let mut contents = vec![["", "", "", "", "", ""]; std::cmp::max(code.codepos.len(), code.fast_codepos.len())];
+            let mut contents = vec![["", "", "", "", "", ""]; std::cmp::max(code.standard_codepos.len(), code.fast_codepos.len())];
             if contents.len() == 0 {
                 continue;
             }
@@ -261,8 +329,8 @@ fn print_csv(import_func_len: u32, funcs: Vec<Vec<AbsCodePos>>) {
 
             // standard
             let standard_codes = code.to_string_standard_code();
-            let standard_stacks = code.to_string_standard_stack();
-            for (i, code) in code.codepos.iter().enumerate() {
+            let standard_stacks = code.to_string_standard_position_stack();
+            for (i, code) in code.standard_codepos.iter().enumerate() {
                 contents[i][2] = standard_codes[i].as_str();
                 contents[i][3] = standard_stacks[i].as_str();
             }
