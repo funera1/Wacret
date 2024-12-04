@@ -1,8 +1,9 @@
 // mod cli;
 mod core;
-mod create_table;
-mod display;
+mod command;
 mod compile;
+
+use command::{create_table, display};
 
 use env_logger;
 // use log::{debug, error, log_enabled, info, Level};
