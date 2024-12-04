@@ -217,7 +217,15 @@ impl<'a> FastBytecodeFunction<'a> {
                 Operator::Drop{ .. } => {
                     // [Any] -> []
                     // skip_label
-                    let _ = stack.pop().expect("[ERROR] stack is empty");
+                    // let _ = stack.pop().expect("[ERROR] stack is empty");
+                    
+                    // TODO: skip_labelにする（ただし、stack.popするだけだとcalc_stackのときに反映されないのでどうするか考える)
+                    let i = vec![WasmType::Any];
+                    let o = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::Select{ .. } => {
                     // [Any, Any, U32] -> [Any]
