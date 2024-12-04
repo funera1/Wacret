@@ -98,11 +98,13 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     // wasmコードの型スタックを計算する
     let funcs = m.parse()?;
 
+    // TODO: import_func_lenを使うの実装が微妙なのでリファクタする
+    let mut import_func_len = 0;
     let mut merged_funcs: Vec<Vec<AbsCodePos>> = Vec::new();
     // 高速バイトコードを配列に詰める。このとき、高速バイトコードの各命令は、wasmコードの命令と等価な位置(index)へ格納する
     for func in funcs {
         match func {
-            Function::ImportFunction(_) => continue,
+            Function::ImportFunction(_) => import_func_len += 1,
             Function::BytecodeFunction(b)=> {
                 // wasmコードから高速バイトコードを生成する
                 let compiled_func = FastBytecodeFunction::new(&m, &b);
@@ -119,7 +121,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     }
 
     // それぞれのバイトコードと型スタックをhuman-friendryな形式で表示する
-    print_csv(merged_funcs);
+    print_csv(import_func_len, merged_funcs);
 
     return Ok(());
 }
@@ -206,7 +208,7 @@ fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtFastCodePos
    return all_codes; 
 }
 
-fn print_csv(funcs: Vec<Vec<AbsCodePos>>) {
+fn print_csv(import_func_len: u32, funcs: Vec<Vec<AbsCodePos>>) {
     // create file
     let file = File::create("wasm.csv").expect("Failed to create file");
     let mut w = BufWriter::new(file);
@@ -217,33 +219,37 @@ fn print_csv(funcs: Vec<Vec<AbsCodePos>>) {
                                 .from_writer(w);
     
     // print header
-    let _ = w.write_record(["offset", "standard code", "standard stack", "fast code", "fast stack"]);
+    // TODO:　ハードコードはバグの要因なのでリファクタする
+    let _ = w.write_record(["fidx", "offset", "standard code", "standard stack", "fast code", "fast stack"]);
 
     // print content
-    for func in funcs {
+    for (fidx, func) in funcs.iter().enumerate() {
         for code in func {
             // TODO: vecの管理をどうにかする
-            let mut contents = vec![["", "", "", "", ""]; std::cmp::max(code.codepos.len(), code.fast_codepos.len())];
+            let mut contents = vec![["", "", "", "", "", ""]; std::cmp::max(code.codepos.len(), code.fast_codepos.len())];
             if contents.len() == 0 {
                 continue;
             }
             let offset_str = &(code.offset.to_string());
-            contents[0][0] = &offset_str;
+            let fidx = import_func_len + fidx as u32;
+            let fidx_str = fidx.to_string();
+            contents[0][0] = &fidx_str;
+            contents[0][1] = &offset_str;
 
             // standard
             let standard_codes = code.to_string_standard_code();
             let standard_stacks = code.to_string_standard_stack();
             for (i, code) in code.codepos.iter().enumerate() {
-                contents[i][1] = standard_codes[i].as_str();
-                contents[i][2] = standard_stacks[i].as_str();
+                contents[i][2] = standard_codes[i].as_str();
+                contents[i][3] = standard_stacks[i].as_str();
             }
 
             // fast
             let fast_codes = code.to_string_fast_code();
             let fast_stacks = code.to_string_fast_stack();
             for (i, code) in code.fast_codepos.iter().enumerate() {
-                contents[i][3] = fast_codes[i].as_str();
-                contents[i][4] = fast_stacks[i].as_str();
+                contents[i][4] = fast_codes[i].as_str();
+                contents[i][5] = fast_stacks[i].as_str();
             }
 
             // offsetを出力
