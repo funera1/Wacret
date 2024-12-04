@@ -1,8 +1,9 @@
 use crate::core::function::{BytecodeFunction, Function, CodePos};
 use crate::core::module;
 // use crate::compile::compile_fast{self, FastBytecodeFunction, FastCodePos, WasmType, u8_to_wasmtype};
-use crate::compile::compile::{WasmType, u8_to_wasmtype};
-use crate::compile::compile_fast::{FastCodePos, FastBytecodeFunction};
+use crate::compile::compile::{WasmType, u8_to_wasmtype, CompiledBytecodeFunction, CompiledCodePos};
+// use crate::compile::compile_fast::{FastCodePos, FastBytecodeFunction};
+// use crate::compile::compile_standard::{StandardCodePos, StandardBytecodeFunction};
 
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};
@@ -16,8 +17,8 @@ use csv::Terminator;
 const BOM: &[u8; 3] = &[0xEF, 0xBB, 0xBF]; // UTF-8
 
 #[derive(Clone)]
-struct ExtFastCodePos<'a> {
-    codepos: FastCodePos<'a>,
+struct ExtCompiledCodePos<'a> {
+    codepos: CompiledCodePos<'a>,
     position_stack: Vec<u32>,
     type_stack: Vec<WasmType>,
 }
@@ -27,7 +28,7 @@ struct AbsCodePos<'a> {
     // NOTE: vecで持ってるからややこしいが、あくまでこれは、あるoffsetについての等価なコード位置のもの
     offset: u32,
     codepos: Vec<CodePos<'a>>,
-    fast_codepos: Vec<ExtFastCodePos<'a>>,
+    fast_codepos: Vec<ExtCompiledCodePos<'a>>,
 }
 
 
@@ -126,14 +127,16 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
             Function::ImportFunction(_) => import_func_len += 1,
             Function::BytecodeFunction(b)=> {
                 // wasmコードから高速バイトコードを生成する
-                let compiled_func = FastBytecodeFunction::new(&m, &b);
+                let standard_func = CompiledBytecodeFunction::new_standard_code(&m, &b);
+                let fast_func = CompiledBytecodeFunction::new_fast_code(&m, &b);
 
                 // 型スタックを計算
-                let ext_compiled_code = ext_fast_bytecode(compiled_func);
+                let ext_standard_code = ext_compiled_bytecode(standard_func);
+                let ext_fast_code = ext_compiled_bytecode(fast_func);
 
                 // funcとcompiled_funcで同じオフセット同士を紐付ける
                 // NOTE: 一つのオフセットに対して複数の命令が入る場合がある
-                let all_codes: Vec<AbsCodePos> = merge_codes(&b.codes, &ext_compiled_code);
+                let all_codes: Vec<AbsCodePos> = merge_codes(&b.codes, &ext_standard_code);
                 merged_funcs.push(all_codes);
             },
         }
@@ -145,7 +148,7 @@ pub fn main(path: Utf8PathBuf) -> Result<()> {
     return Ok(());
 }
 
-fn ext_fast_bytecode(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
+fn ext_compiled_bytecode(func: CompiledBytecodeFunction<'_>) -> Vec<ExtCompiledCodePos> {
     let mut codes = Vec::new();
 
     let mut type_stack = Vec::new();
@@ -164,7 +167,7 @@ fn ext_fast_bytecode(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
         }
 
         codes.push(
-            ExtFastCodePos{
+            ExtCompiledCodePos{
                 codepos: codepos, 
                 position_stack: position_stack.clone(),
                 type_stack: type_stack.clone(),
@@ -174,7 +177,7 @@ fn ext_fast_bytecode(func: FastBytecodeFunction<'_>) -> Vec<ExtFastCodePos> {
 }
 
 // TODO: clone多用しているが、そのcloneが適切か考え直す
-fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtFastCodePos<'a>>) -> Vec<AbsCodePos<'a>> {
+fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtCompiledCodePos<'a>>) -> Vec<AbsCodePos<'a>> {
     // codesの前処理
     let mut m1: HashMap<u32, Vec<CodePos>> = HashMap::new();
     let mut v1 = Vec::new();
@@ -189,8 +192,8 @@ fn merge_codes<'a>(codes: &Vec<CodePos<'a>>, compiled_codes: &Vec<ExtFastCodePos
     }
 
     // compiled_codesの前処理
-    let mut m2: HashMap<u32, Vec<ExtFastCodePos>> = HashMap::new();
-    let mut v2: Vec<ExtFastCodePos> = Vec::new();
+    let mut m2: HashMap<u32, Vec<ExtCompiledCodePos>> = HashMap::new();
+    let mut v2: Vec<ExtCompiledCodePos> = Vec::new();
     now_offset = 0;
     for ext in compiled_codes {
         if now_offset != ext.codepos.offset {

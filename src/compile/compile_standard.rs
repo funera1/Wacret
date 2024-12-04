@@ -6,31 +6,31 @@ use crate::core::module::Module;
 use crate::compile::compile::*;
 
 #[derive(Clone)]
-pub struct FastCodePos<'a> {
+pub struct StandardCodePos<'a> {
     pub opcode: Operator<'a>,
     pub optype: OpType,
     pub offset: u32,
 }
 
-pub struct FastBytecodeFunction<'a> {
+pub struct StandardBytecodeFunction<'a> {
     pub locals: Vec<u8>,
-    pub codes: Vec<FastCodePos<'a>>,
+    pub codes: Vec<StandardCodePos<'a>>,
 
     // module: &'a Module<'a>,
     // else_blockty: BlockType,
     // func_body: &'a FunctionBody<'a>,
 }
 
-impl<'a> FastBytecodeFunction<'a> {
+impl<'a> StandardBytecodeFunction<'a> {
     pub fn new(module: &Module, func: &BytecodeFunction<'a>) -> Self { 
-        return FastBytecodeFunction {
+        return Self {
             locals: func.locals.clone(),
-            codes: Self::compile_fast_bytecode(module, &func.codes),
+            codes: Self::compile_standard_bytecode(module, &func.codes),
         };
     }
 
-    fn emit_label(codepos: &CodePos<'a>, input: Vec<WasmType> , output: Vec<WasmType>) -> FastCodePos<'a> {
-        let f = FastCodePos {
+    fn emit_label(codepos: &CodePos<'a>, input: Vec<WasmType> , output: Vec<WasmType>) -> StandardCodePos<'a> {
+        let f = StandardCodePos {
             opcode: codepos.opcode.clone(),
             optype: OpType { input: input, output: output},
             offset: codepos.offset,
@@ -61,11 +61,11 @@ impl<'a> FastBytecodeFunction<'a> {
         return default_type;
     }
 
-    pub fn compile_fast_bytecode(module: &Module, codes: &Vec<CodePos<'a>>) -> Vec<FastCodePos<'a>> {
+    pub fn compile_standard_bytecode(module: &Module, codes: &Vec<CodePos<'a>>) -> Vec<StandardCodePos<'a>> {
         // 仮スタック
         // TODO: 多分stackにはコード位置も入る
         let mut stack: Vec<ValInfo> = Vec::new();
-        let mut fast_bytecode: Vec<FastCodePos> = Vec::new();
+        let mut fast_bytecode: Vec<StandardCodePos> = Vec::new();
 
         for codepos in codes {
             match codepos.opcode {
