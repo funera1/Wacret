@@ -222,8 +222,8 @@ fn ext_compiled_bytecode(func: CompiledBytecodeFunction<'_>) -> Vec<ExtCompiledC
         let optype = &codepos.optype;
         // pop
         for _ in 0..optype.input.len() {
-            position_stack.pop();
-            type_stack.pop();
+            position_stack.pop().expect("Failed to pop position_stack");
+            type_stack.pop().expect("Failed to pop type_stack");
         }
         // push
         for i in 0..optype.output.len() {

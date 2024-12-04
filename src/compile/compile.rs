@@ -161,6 +161,12 @@ impl<'a> CompiledBytecodeFunction<'a> {
                 }
                 Operator::End{ .. } => {
                     // TODO: 挙動をちゃんと調べる
+                    let i: Vec<WasmType> = vec![];
+                    let o: Vec<WasmType> = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::Br{..} => {
                     // [t1*, t*] -> [t2*]
@@ -192,7 +198,12 @@ impl<'a> CompiledBytecodeFunction<'a> {
                 }
                 Operator::Return{ .. } => {
                     // TODO: ほんとにbreakで良いのか確認
-                    break;
+                    let i: Vec<WasmType> = vec![];
+                    let o: Vec<WasmType> = vec![];
+
+                    fast_bytecode.push(
+                        Self::emit_label(codepos, Self::popf(&mut stack, i), Self::pushf(&mut stack, o))
+                    );
                 }
                 Operator::Call{ function_index } => {
                     // [Args*] -> [Rets*]
