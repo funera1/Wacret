@@ -1,6 +1,9 @@
 use crate::core::function::{BytecodeFunction, Function, CodePos};
 use crate::core::module;
-use crate::compile::{self, FastBytecodeFunction, FastCodePos, WasmType, u8_to_wasmtype};
+// use crate::compile::compile_fast{self, FastBytecodeFunction, FastCodePos, WasmType, u8_to_wasmtype};
+use crate::compile::compile::{WasmType, u8_to_wasmtype};
+use crate::compile::compile_fast::{FastCodePos, FastBytecodeFunction};
+
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};
 use std::fs::File;
