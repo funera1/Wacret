@@ -1,6 +1,16 @@
 # Wacret
 Wasm Checkpoint/Restore Tool
 
+## Feature
+- Crate: 型スタックテーブルの作成
+
+## Build
+```
+git clone git@github.com:funera1/Wacret.git
+cd Wacret
+cargo build
+```
+
 ## Usage
 ```
 Usage: wacret <COMMAND>
@@ -12,5 +22,4 @@ Commands:
 Options:
   -h, --help     Print help
   -V, --version  Print version
-
 ```
