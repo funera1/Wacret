@@ -22,6 +22,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum SubCommands {
+    /// Create type stack tables for checkpointing a wasm app.
     Create {
         path: Utf8PathBuf,
     },
