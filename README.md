@@ -2,7 +2,7 @@
 Wasm Checkpoint/Restore Tool
 
 ## Feature
-- Crate: 型スタックテーブルの作成
+- Create: 型スタックテーブルの作成
 
 ## Build
 ```
