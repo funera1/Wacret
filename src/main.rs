@@ -26,6 +26,10 @@ enum SubCommands {
     Create {
         path: Utf8PathBuf,
     },
+    /// Analysis wasm state file
+    Analysis {
+        path: Utf8PathBuf,
+    }
 }
 
 #[derive(Debug, Args)]
@@ -45,5 +49,17 @@ fn main() {
                 Err(err) => log::error!("Fialed to create the type stack table, {}", err)
             }
         },
+        SubCommands::Analysis { path } => {
+            let name = path.file_name().expect("Failed to get file name");
+            match name {
+                "program_counter.img" => {
+                    print!("Hello {}", name);
+                },
+                default => {
+                    log::error!("Unsupport file: {}", name);
+                },
+            }
+        },
+        default => {},
     }
 }
