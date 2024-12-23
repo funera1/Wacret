@@ -1,6 +1,7 @@
 // mod cli;
 mod core;
 mod create_table;
+mod analysis;
 
 use env_logger;
 // use log::{debug, error, log_enabled, info, Level};
@@ -52,14 +53,16 @@ fn main() {
         SubCommands::Analysis { path } => {
             let name = path.file_name().expect("Failed to get file name");
             match name {
+                // TODO: matchをanalysis_mainにまとめる
                 "program_counter.img" => {
-                    print!("Hello {}", name);
+                    println!("Hello {}", name);
+                    analysis::analysis_pc(path);
                 },
-                default => {
+                _default => {
                     log::error!("Unsupport file: {}", name);
                 },
             }
         },
-        default => {},
+        // _default => {},
     }
 }
