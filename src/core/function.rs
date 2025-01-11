@@ -18,6 +18,7 @@ impl ImportFunction {
     }
 }
 
+#[derive(Clone)]
 pub struct BytecodeFunction<'a> {
     pub locals: Vec<u8>,
     pub codes: Vec<CodePos<'a>>,
