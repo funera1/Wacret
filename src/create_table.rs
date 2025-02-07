@@ -81,7 +81,7 @@ fn calc_tableoffset(func: &BytecodeFunction, base_addr: u32) -> (Vec<u32>, u32) 
     for codepos in &func.codes {
         offset_to_codepos[codepos.offset as usize] = addr;
 
-        // "type_stack_table format"
+        // "type_table format"
         // 各コード位置について
         //  - 型スタックの長さ (u32)
         //  - 型スタックの中身 (stack.len * u8)
@@ -121,6 +121,10 @@ pub fn write_type_stack_table(funcs: &Vec<Function>, filename: &str) -> Result<(
     return Ok(());
 }
 
+// "tablemap_func format"
+// 関数fについて
+//  - 関数fの関数id(u32)
+//  - tablemap_offsetにおける関数fセクションの先頭アドレス(u64)
 pub fn write_tablemap_func(tablemap_func: &Vec<u32>, filename: &str) -> Result<()> {
     let f: File = File::create(filename)?;
 
@@ -140,7 +144,7 @@ pub fn write_tablemap_func(tablemap_func: &Vec<u32>, filename: &str) -> Result<(
 //  - fのローカル (local.len * u8)
 //  - 各コード位置について
 //      - offset  (u32)
-//      - address (u64)
+//      - type_tableにおける関数f,命令オフセットoの型スタックがあるアドレス (u64)
 pub fn write_tablemap_offset(tablemap_offset: &Vec<Vec<u32>>, funcs: &Vec<Function>, filename: &str) -> Result<()> {
     let f: File = File::create(filename)?;
 
