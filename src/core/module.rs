@@ -62,6 +62,32 @@ impl<'a> Module<'a> {
         return Ok(ret);
     }
 
+    pub fn parse_v2(&self) -> Result<Vec<FunctionV2>> {
+        let mut ret : Vec<Function> = vec![];
+
+        for i in 0..self.funcs.len() as u32 {
+            let body = &self.funcs[i as usize].body;
+            match body {
+                Some(body) => {
+                    let else_blockty = BlockType::Empty;
+                    let locals = self.get_locals(i)?;
+                    log::debug!("local size in {}th function: {}", i, locals.to_vec().len());
+
+                    let v: Vec<CodePos<'_>> = vec![];
+                    let mut f = BytecodeFunction::new(&self, &body, locals.to_vec(), else_blockty, v.to_vec());
+                    let _ = f.construct();
+                    ret.push(Function::BytecodeFunction(f));
+                }
+                None => {
+                    log::debug!("{}th function is import_function", i);
+                    let f = ImportFunction::new();
+                    ret.push(Function::ImportFunction(f));
+                },
+            };
+        }
+        return Ok(ret);
+    }
+
     pub fn get_locals(&self, fidx: u32) -> Result<Vec<u8>> {
         // ローカルのVecを生成
         let mut locals: Vec<u8> = Vec::new();
