@@ -6,9 +6,12 @@ use strum_macros::{Display, EnumString};
 pub enum WasmType {
     Any = 0,
     U8 = 1,
-    U32 = 4,
-    U64 = 8,
-    U128 = 16,
+    I32,
+    F32,
+    I64,
+    F64,
+    V128,
+    Ref,
 }
 
 impl WasmType {
@@ -16,9 +19,23 @@ impl WasmType {
         match self {
             WasmType::Any => return "Any",
             WasmType::U8 => return "U8",
-            WasmType::U32 => return "U32",
-            WasmType::U64 => return "U64",
-            WasmType::U128 => return "U128",
+            WasmType::I32 => return "I32",
+            WasmType::F32 => return "F32",
+            WasmType::I64 => return "I64",
+            WasmType::F64 => return "F64",
+            WasmType::V128 => return "V128",
+            WasmType::Ref => return "Ref",
+        }
+    }
+    
+    pub fn size(&self) -> u8 {
+        match self {
+            WasmType::Any => return 0,
+            WasmType::U8 => return 1,
+            WasmType::I32 | WasmType::F32 => return 4,
+            WasmType::I64 | WasmType::F64 => return 8,
+            WasmType::V128 => return 16,
+            WasmType::Ref => return 255,
         }
     }
 }
