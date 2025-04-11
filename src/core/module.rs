@@ -3,6 +3,8 @@ use wasmparser::{Parser, Payload, TypeRef};
 use wasmparser::{FunctionBody, FuncType, GlobalType, BlockType, ValType};
 
 use crate::core::function::{Function, BytecodeFunction, ImportFunction, CodePos, valtype_to_size};
+use crate::core::function_v2;
+use crate::core::val::{WasmType, valtype_to_wasmtype};
 
 pub struct Fn<'a> {
     pub fidx: u32,
@@ -62,30 +64,26 @@ impl<'a> Module<'a> {
         return Ok(ret);
     }
 
-    pub fn parse_v2(&self) -> Result<Vec<FunctionV2>> {
-        let mut ret : Vec<Function> = vec![];
-
-        for i in 0..self.funcs.len() as u32 {
-            let body = &self.funcs[i as usize].body;
-            match body {
-                Some(body) => {
-                    let else_blockty = BlockType::Empty;
-                    let locals = self.get_locals(i)?;
-                    log::debug!("local size in {}th function: {}", i, locals.to_vec().len());
-
-                    let v: Vec<CodePos<'_>> = vec![];
-                    let mut f = BytecodeFunction::new(&self, &body, locals.to_vec(), else_blockty, v.to_vec());
-                    let _ = f.construct();
-                    ret.push(Function::BytecodeFunction(f));
+    pub fn parse_v2(&self) -> Result<Vec<function_v2::Function>> {
+        let ret: Vec<function_v2::Function> = self
+            .funcs
+            .iter()
+            .enumerate()
+            .map(|(i, func)| {
+                match &func.body {
+                    Some(body) => {
+                        let f = function_v2::BytecodeFunction::new(self, body, i as u32);
+                        function_v2::Function::BytecodeFunction(f)
+                    }
+                    None => {
+                        log::debug!("{}th function is import_function", i);
+                        let f = function_v2::ImportFunction::new();
+                        function_v2::Function::ImportFunction(f)
+                    }
                 }
-                None => {
-                    log::debug!("{}th function is import_function", i);
-                    let f = ImportFunction::new();
-                    ret.push(Function::ImportFunction(f));
-                },
-            };
-        }
-        return Ok(ret);
+            })
+            .collect();
+        Ok(ret)    
     }
 
     pub fn get_locals(&self, fidx: u32) -> Result<Vec<u8>> {

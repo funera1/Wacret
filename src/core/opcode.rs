@@ -1,14 +1,15 @@
 use wasmparser::Operator;
-use crate::core::val::WasmType;
+use crate::core::val::{WasmType, valtype_to_wasmtype};
 use crate::core::module::Module;
+use crate::core::function_v2::BytecodeFunction;
 
 pub struct OpInfo {
     pub input: Vec<WasmType>,
     pub output: Vec<WasmType>,
 }
 
-impl<'a> Module<'a> {
-    pub fn opcode_info(&self, op: &Operator) -> OpInfo {
+impl<'a> BytecodeFunction<'a> {
+    pub fn opinfo(&self, op: &Operator) -> OpInfo {
         match op {
             Operator::Unreachable => {
                 return OpInfo {
@@ -94,7 +95,7 @@ impl<'a> Module<'a> {
             }
             Operator::Call{ function_index } => {
                 // [Args*] -> [Rets*]
-                let f = self.get_type_by_func(*function_index);
+                let f = self.module.get_type_by_func(*function_index);
                 let params = f.params();
                 let results = f.results();
 
@@ -108,12 +109,12 @@ impl<'a> Module<'a> {
             }
             Operator::CallIndirect{ type_index , .. } => {
                 // [Args*, U32] -> [Rets*]
-                let f = self.get_type_by_type(type_index);
+                let f = self.module.get_type_by_type(*type_index);
                 let params = f.params();
                 let results = f.results();
 
                 let i: Vec<WasmType> = params.iter().map(valtype_to_wasmtype)
-                                             .chain(std::iter::once(WasmType::U32)).collect();
+                                             .chain(std::iter::once(WasmType::I32)).collect();
                 let o: Vec<WasmType> = results.iter().map(valtype_to_wasmtype).collect();
 
                 return OpInfo {
@@ -137,7 +138,7 @@ impl<'a> Module<'a> {
             }
             Operator::Select{ .. } => {
                 // [Any, Any, U32] -> [Any]
-                let i = vec![WasmType::Any, WasmType::Any, WasmType::U32];
+                let i = vec![WasmType::Any, WasmType::Any, WasmType::I32];
                 let o = vec![WasmType::Any];
 
                 return OpInfo {
@@ -147,7 +148,7 @@ impl<'a> Module<'a> {
             }
             Operator::TypedSelect{ .. } => {
                 // [Any, Any, U32] -> [Any]
-                let i = vec![WasmType::Any, WasmType::Any, WasmType::U32];
+                let i = vec![WasmType::Any, WasmType::Any, WasmType::I32];
                 let o = vec![WasmType::Any];
 
                 return OpInfo {
@@ -160,10 +161,10 @@ impl<'a> Module<'a> {
                 // [] -> [Any]
                 // skip_label
                 // local_indexの型をstackにpushする
-                let local_type = self.get_type_by_local(local_index);
+                let local_type = self.get_type_by_local(*local_index);
                 return OpInfo {
                     input: vec![],
-                    output: vec![local_type],
+                    output: vec![*local_type],
                 };
             }
             Operator::LocalSet{ .. } => {
@@ -177,9 +178,9 @@ impl<'a> Module<'a> {
             }
             Operator::LocalTee{ .. } => {
                 // [Any] -> [Any]
-                // TODO: local.getをskipすることで発生するごにょごにょを処理しないといけない
                 let i = vec![WasmType::Any];
-                let o = vec![WasmType::Any];
+                let o = vec![WasmType::Any];                
+               //  let f = self.get_type_by_type(type_index);
 
                 return OpInfo {
                     input: i,
@@ -191,7 +192,7 @@ impl<'a> Module<'a> {
                 let i = vec![];
                 let o = vec![WasmType::Any];
 
-                let global_type = self.get_type_by_global(global_index);
+                let global_type = self.module.get_type_by_global(global_index);
                 return OpInfo {
                     input: i,
                     output: o,

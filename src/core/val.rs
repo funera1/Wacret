@@ -42,18 +42,12 @@ impl WasmType {
 
 pub fn valtype_to_wasmtype(valtype: &ValType) -> WasmType {
     match valtype {
-        ValType::I32 | ValType::F32 | ValType::Ref(_) => return WasmType::U32,
-        ValType::I64 | ValType::F64 => return WasmType::U64,
-        ValType::V128 => return WasmType::U128,
-    }
-}
-
-pub fn u8_to_wasmtype(num: u8) -> WasmType {
-    match num {
-        1 => return WasmType::U32,
-        2 => return WasmType::U64,
-        4 => return WasmType::U128,
-        _ => return WasmType::Any,
+        ValType::I32 => return WasmType::I32,
+        ValType::I64 => return WasmType::I64,
+        ValType::F32 => return WasmType::F32,
+        ValType::F64 => return WasmType::F64,
+        ValType::V128 => return WasmType::V128,
+        ValType::Ref(..) => return WasmType::Ref,
     }
 }
 

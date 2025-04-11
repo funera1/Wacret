@@ -19,7 +19,7 @@ pub fn create_table_v2(path: Utf8PathBuf) -> Result<()> {
     log::debug!("function size is {}", m.funcs.len());
 
     // 型スタックを生成
-    let funcs = m.parse()?;
+    let funcs = m.parse_v2()?;
 
     // 型スタックから型スタックテーブルを生成する
     let (tablemap_func, tablemap_offset) = calc_tablemap(&funcs);
