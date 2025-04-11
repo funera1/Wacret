@@ -212,7 +212,7 @@ impl<'a> BytecodeFunction<'a> {
             }
             Operator::GlobalGet{ global_index } => {
                 // [] -> [t]
-                let valtype = self.module.get_global_type(*global_index);
+                let valtype = self.module.get_type_by_global(*global_index);
                 v.push(valtype_to_size(valtype));
             }
             Operator::GlobalSet{ .. } => {

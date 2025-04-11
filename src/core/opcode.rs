@@ -189,13 +189,10 @@ impl<'a> BytecodeFunction<'a> {
             }
             Operator::GlobalGet{ global_index } => {
                 // [] -> [Any]
-                let i = vec![];
-                let o = vec![WasmType::Any];
-
-                let global_type = self.module.get_type_by_global(global_index);
+                let global_type = self.module.get_type_by_global(*global_index);
                 return OpInfo {
-                    input: i,
-                    output: o,
+                    input: vec![],
+                    output: vec![valtype_to_wasmtype(global_type)],
                 };
             }
             Operator::GlobalSet{ .. } => {
@@ -211,8 +208,8 @@ impl<'a> BytecodeFunction<'a> {
             Operator::TableGet{ .. } => {
                 unimplemented!("Not supported yet");
                 // [U32] -> [Any]
-                let i = vec![WasmType::I32];
-                let o = vec![WasmType::Any];
+                // let i = vec![WasmType::I32];
+                // let o = vec![WasmType::Any];
             }
             Operator::TableSet{ .. } => {
                 // [U32, Any] -> []

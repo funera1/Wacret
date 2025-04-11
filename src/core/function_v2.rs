@@ -34,8 +34,10 @@ impl<'a> BytecodeFunction<'a> {
             .map(valtype_to_wasmtype)
             .collect::<Vec<_>>();
 
-        for local in body.get_locals_reader()?.into_iter() {
-            let (count, typ) = local?;
+        for local in body.get_locals_reader()
+            .expect("Failed to get locals reader")
+            .into_iter() {
+            let (count, typ) = local.expect("Failed to read local");
             locals.extend(std::iter::repeat(valtype_to_wasmtype(&typ)).take(count as usize));
         }
 

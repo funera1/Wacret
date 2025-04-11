@@ -34,7 +34,7 @@ impl<'a> Module<'a> {
         return &self.types[type_idx as usize];
     }
 
-    pub fn get_global_type(&self, global_idx: u32) -> &ValType {
+    pub fn get_type_by_global(&self, global_idx: u32) -> &ValType {
         return &self.globals[global_idx as usize].content_type;
     }
 
