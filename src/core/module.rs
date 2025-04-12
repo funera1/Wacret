@@ -4,7 +4,6 @@ use wasmparser::{FunctionBody, FuncType, GlobalType, BlockType, ValType};
 
 use crate::core::function::{Function, BytecodeFunction, ImportFunction, CodePos, valtype_to_size};
 use crate::core::function_v2;
-use crate::core::val::{WasmType, valtype_to_wasmtype};
 
 pub struct Fn<'a> {
     pub fidx: u32,
@@ -34,7 +33,7 @@ impl<'a> Module<'a> {
         return &self.types[type_idx as usize];
     }
 
-    pub fn get_global_type(&self, global_idx: u32) -> &ValType {
+    pub fn get_type_by_global(&self, global_idx: u32) -> &ValType {
         return &self.globals[global_idx as usize].content_type;
     }
 

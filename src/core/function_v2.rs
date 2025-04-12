@@ -1,4 +1,4 @@
-use wasmparser::{FunctionBody, Operator, ValType, FuncType, BlockType};
+use wasmparser::{FunctionBody, Operator};
 use anyhow::Result;
 use crate::core::val::{WasmType, valtype_to_wasmtype};
 
@@ -39,16 +39,6 @@ impl<'a> CodePos<'a> {
     }
 }
 
-pub struct StackTable<'a> {
-    pub inner: Vec<CodePos<'a>>,
-}
-
-impl<'a> StackTable<'a> {
-    pub fn new(inner: Vec<CodePos<'a>>) -> Self {
-        Self {inner}
-    }
-}
-
 impl<'a> BytecodeFunction<'a> {
     pub fn new(module: &'a Module<'a>, body: &'a FunctionBody<'a>, fidx: u32) -> Self {
         let mut locals = module.get_type_by_func(fidx)
@@ -75,7 +65,7 @@ impl<'a> BytecodeFunction<'a> {
         return &self.locals[local_idx as usize];
     }
     
-    pub fn create_stack_table(&self) -> Result<StackTable> {
+    pub fn create_stack_table(&self) -> Result<Vec<CodePos>> {
         let mut reader = self.body.get_operators_reader()?;
         let base_offset = reader.original_position() as u32;
         
@@ -92,7 +82,7 @@ impl<'a> BytecodeFunction<'a> {
             stack_table.push(CodePos::new(op.clone(), offset, stack.clone()));
         }
 
-        Ok(StackTable::new(stack_table))
+        Ok(stack_table)
     }
 }
 

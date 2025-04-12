@@ -52,8 +52,8 @@ impl<'a> BytecodeFunction<'a> {
             }
             Operator::End{ .. } => {
                 // TODO: 挙動をちゃんと調べる
-                let i: Vec<WasmType> = vec![];
-                let o: Vec<WasmType> = vec![];
+                // let i: Vec<WasmType> = vec![];
+                // let o: Vec<WasmType> = vec![];
 
                 return OpInfo {
                     input: vec![],
@@ -63,8 +63,8 @@ impl<'a> BytecodeFunction<'a> {
             Operator::Br{..} => {
                 // [t1*, t*] -> [t2*]
                 // NOTE: この位置では型スタックは変化しない
-                let i: Vec<WasmType> = vec![];
-                let o: Vec<WasmType> = vec![];
+                // let i: Vec<WasmType> = vec![];
+                // let o: Vec<WasmType> = vec![];
 
                 return OpInfo {
                     input: vec![],
@@ -188,13 +188,10 @@ impl<'a> BytecodeFunction<'a> {
             }
             Operator::GlobalGet{ global_index } => {
                 // [] -> [Any]
-                let i = vec![];
-                let o = vec![WasmType::Any];
-
-                let global_type = self.module.get_type_by_global(global_index);
+                let global_type = self.module.get_type_by_global(*global_index);
                 return OpInfo {
-                    input: i,
-                    output: o,
+                    input: vec![],
+                    output: vec![valtype_to_wasmtype(global_type)],
                 };
             }
             Operator::GlobalSet{ .. } => {
@@ -210,8 +207,8 @@ impl<'a> BytecodeFunction<'a> {
             Operator::TableGet{ .. } => {
                 unimplemented!("Not supported yet");
                 // [U32] -> [Any]
-                let i = vec![WasmType::I32];
-                let o = vec![WasmType::Any];
+                // let i = vec![WasmType::I32];
+                // let o = vec![WasmType::Any];
             }
             Operator::TableSet{ .. } => {
                 // [U32, Any] -> []
