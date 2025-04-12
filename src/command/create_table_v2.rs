@@ -18,8 +18,11 @@ pub fn create_table_v2(path: Utf8PathBuf) -> Result<()> {
     let m = module::new_module(&buf)?;
     log::debug!("function size is {}", m.funcs.len());
 
-    // 型スタックを生成
-    let funcs = m.parse_v2()?;
+    // 関数クラスを初期化
+    let funcs = m.new_function_v2()?;
+    
+    // 型スタック・命令スタックテーブルを生成
+    
 
     // 型スタックから型スタックテーブルを生成する
     let (tablemap_func, tablemap_offset) = calc_tablemap(&funcs);

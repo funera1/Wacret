@@ -1,6 +1,5 @@
 use wasmparser::Operator;
 use crate::core::val::{WasmType, valtype_to_wasmtype};
-use crate::core::module::Module;
 use crate::core::function_v2::BytecodeFunction;
 
 pub struct OpInfo {

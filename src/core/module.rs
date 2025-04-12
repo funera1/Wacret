@@ -64,7 +64,7 @@ impl<'a> Module<'a> {
         return Ok(ret);
     }
 
-    pub fn parse_v2(&self) -> Result<Vec<function_v2::Function>> {
+    pub fn new_function_v2(&self) -> Result<Vec<function_v2::Function>> {
         let ret: Vec<function_v2::Function> = self
             .funcs
             .iter()
