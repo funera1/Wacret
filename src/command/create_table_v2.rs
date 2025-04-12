@@ -45,10 +45,11 @@ pub fn create_table_v2(path: Utf8PathBuf) -> Result<()> {
     let buf = to_vec_named(&stack_tables).unwrap();
     
     // bufをファイルに書き込む
-    let mut f: File = File::create("stack-table")?;
+    let mut f: File = File::create("stack-table.msgpack")?;
     f.write(buf.as_slice())?;
     log::debug!("write type_table");
 
+    println!("write stack table to stack-table.msgpack");
 
     Ok(())
 }

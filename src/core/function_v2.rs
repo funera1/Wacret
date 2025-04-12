@@ -3,6 +3,7 @@ use anyhow::Result;
 use crate::core::val::{WasmType, valtype_to_wasmtype};
 
 use crate::core::module::Module;
+use crate::core::opcode::OpInfo;
 
 pub enum Function<'a> {
     ImportFunction(ImportFunction),
@@ -30,11 +31,11 @@ pub struct CodePos<'a> {
     // TODO: opecodeの扱いを考え直す. 
     pub op: Operator<'a>,
     pub offset: u32,
-    pub stack: Vec<WasmType>,
+    pub stack: Stack<'a>,
 }
 
 impl<'a> CodePos<'a> {
-    pub fn new(op: Operator<'a>, offset: u32, stack: Vec<WasmType>) -> Self {
+    pub fn new(op: Operator<'a>, offset: u32, stack: Stack<'a>) -> Self {
         Self {op, offset, stack}
     }
 }
@@ -69,14 +70,14 @@ impl<'a> BytecodeFunction<'a> {
         let mut reader = self.body.get_operators_reader()?;
         let base_offset = reader.original_position() as u32;
         
-        let mut stack = vec![];
+        let mut stack = Stack::new();
         let mut stack_table = vec![];
         while !reader.eof() {
             let op = reader.read()?;
             let offset = reader.original_position() as u32 - base_offset;
             
             let opinfo = self.opinfo(&op);
-            stack_apply(&mut stack, &opinfo.input, &opinfo.output);
+            stack_apply(&mut stack, &op, &opinfo);
             
             // stackをcopy
             stack_table.push(CodePos::new(op.clone(), offset, stack.clone()));
@@ -86,12 +87,37 @@ impl<'a> BytecodeFunction<'a> {
     }
 }
 
-fn stack_apply(stack: &mut Vec<WasmType>, input: &Vec<WasmType>, output: &Vec<WasmType>) {
+#[derive(Clone)]
+pub struct Stack<'a> {
+    pub inner: Vec<(Operator<'a>, WasmType)>,
+}
+
+impl<'a> Stack<'a> {
+    pub fn new() -> Self {
+        Self { inner: vec![] }
+    }
+    
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+    
+    pub fn push(&mut self, entry: (Operator<'a>, WasmType)) {
+        self.inner.push(entry);
+    }
+}
+
+fn stack_apply<'a>(stack: &mut Stack<'a>, opcode: &Operator<'a>, opinfo: &OpInfo) {
+    let input = &opinfo.input;
+    let output = &opinfo.output;
+
     // pop
     let pop_len = input.len();
     let stack_len = stack.len();
-    stack.truncate(stack_len.saturating_sub(pop_len));
+    stack.inner.truncate(stack_len.saturating_sub(pop_len));
     
     // push
-    stack.extend(output);
+    for typ in output.iter() {
+        // TODO: cloneを避ける
+        stack.push((opcode.clone(), typ.clone()));
+    }
 }
