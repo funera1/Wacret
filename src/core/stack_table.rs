@@ -21,7 +21,7 @@ pub type Offset = u32;
 pub type Stack = Vec<(CompiledOp, WasmType)>;
 #[derive(Serialize, Deserialize)]
 pub struct StackTable {
-    pub inner: IndexMap<Offset, Stack>,
+    inner: IndexMap<Offset, Stack>,
 }
 
 impl StackTable {
@@ -64,6 +64,10 @@ impl StackTables {
 
     pub fn deserialize(data: &[u8]) -> Self {
         rmp_serde::from_slice(data).unwrap()
+    }
+    
+    pub fn get_stack(&self, fidx: usize, offset: u32) -> &Stack {
+        &self.0[fidx].inner[&offset]
     }
 }
 
