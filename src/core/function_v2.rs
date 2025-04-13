@@ -73,8 +73,8 @@ impl<'a> BytecodeFunction<'a> {
         let mut stack = Stack::new();
         let mut stack_table = vec![];
         while !reader.eof() {
-            let op = reader.read()?;
             let offset = reader.original_position() as u32 - base_offset;
+            let op = reader.read()?;
             
             let opinfo = self.opinfo(&op);
             stack_apply(&mut stack, &op, &opinfo);
