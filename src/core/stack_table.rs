@@ -66,8 +66,22 @@ impl StackTables {
         rmp_serde::from_slice(data).unwrap()
     }
     
-    pub fn get_stack(&self, fidx: usize, offset: u32) -> &Stack {
-        &self.0[fidx].inner[&offset]
+    pub fn get_stack(&self, fidx: usize, offset: u32) -> Result<&Stack> {
+        let s = &self.0[fidx];
+        s.inner
+            .get(&offset)
+            .ok_or_else(|| anyhow::anyhow!("Stack not found for offset {}", offset))
+    }
+
+    pub fn get_stack_nth(&self, fidx: usize, n: usize) -> Result<&Stack> {
+        let s = &self.0[fidx];
+        let a = s.inner
+            .get_index(n);
+        if let Some((_, stack)) = a {
+            Ok(stack)
+        } else {
+            Err(anyhow::anyhow!("Stack not found for index {}", n))
+        }
     }
 }
 
