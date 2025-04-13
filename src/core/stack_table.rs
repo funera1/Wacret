@@ -1,8 +1,7 @@
-use crate::core::function_v2::{CodePos, Stack, Function};
+use crate::core::function_v2::{CodePos, Function};
 use crate::core::val::WasmType;
 use serde::{Serialize, Deserialize};
 use wasmparser::Operator;
-use std::collections::HashMap;
 use anyhow::Result;
 
 #[derive(Serialize, Deserialize)]
@@ -58,7 +57,7 @@ impl StackTable {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct StackTables(pub HashMap<u32, StackTable>);
+pub struct StackTables(pub Vec<StackTable>);
 
 impl StackTables {
     pub fn from_func(funcs: Vec<Function<'_>>) -> Result<Self> {
@@ -72,6 +71,17 @@ impl StackTables {
                 }
             }
         }).collect::<Vec<_>>();
+
+        // Vec<Vec<CodePos>>からStackTableに変換
+        let stack_tables: Vec<StackTable> = stack_tables
+            .into_iter()
+            .map(|st| {
+                let inner = st.into_iter().map(|entry| StEntry::from_codepos(entry)).collect();
+                StackTable::new(inner)
+            })
+            .collect();
+        
+        Ok(StackTables(stack_tables))
     }
 
     pub fn serialize(&self) -> Vec<u8> {
