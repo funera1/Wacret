@@ -67,8 +67,12 @@ impl<'a> BytecodeFunction<'a> {
     }
     
     pub fn create_stack_table(&self) -> Result<Vec<CodePos>> {
+        // offset取得
+        let original_reader = self.body.get_binary_reader();
+        let base_offset = original_reader.original_position() as u32;
+
+        // 命令を取得
         let mut reader = self.body.get_operators_reader()?;
-        let base_offset = reader.original_position() as u32;
         
         let mut stack = Stack::new();
         let mut stack_table = vec![];
