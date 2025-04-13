@@ -1,9 +1,11 @@
-use crate::core::function_v2::{CodePos, Stack};
+use crate::core::function_v2::{CodePos, Stack, Function};
 use crate::core::val::WasmType;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use wasmparser::Operator;
+use std::collections::HashMap;
+use anyhow::Result;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub enum CompiledOp {
     LocalGet(u32),
     I32Const(i32),
@@ -13,7 +15,7 @@ pub enum CompiledOp {
     Other,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct StEntry {
     // pub opecode: u8,
     // pub operand: Option<CompiledOp>,
@@ -44,7 +46,7 @@ impl StEntry {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct StackTable {
     pub inner: Vec<StEntry>,
 }
@@ -54,3 +56,29 @@ impl StackTable {
         Self {inner}
     }
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct StackTables(pub HashMap<u32, StackTable>);
+
+impl StackTables {
+    pub fn from_func(funcs: Vec<Function<'_>>) -> Result<Self> {
+        let stack_tables= funcs.iter().map(|f| {
+            match f {
+                Function::ImportFunction(_) => {
+                    return Vec::new();
+                }
+                Function::BytecodeFunction(f) => {
+                    return f.create_stack_table().expect("failed to create stack table");
+                }
+            }
+        }).collect::<Vec<_>>();
+    }
+
+    pub fn serialize(&self) -> Vec<u8> {
+        rmp_serde::to_vec_named(self).unwrap()
+    }
+    pub fn deserialize(data: &[u8]) -> Self {
+        rmp_serde::from_slice(data).unwrap()
+    } 
+}
+

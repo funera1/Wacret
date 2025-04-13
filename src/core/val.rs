@@ -1,9 +1,9 @@
 use wasmparser::ValType;
 use strum_macros::EnumString;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[repr(u8)]
-#[derive(Clone, Copy, EnumString, Serialize)]
+#[derive(Clone, Copy, EnumString, Serialize, Deserialize)]
 pub enum WasmType {
     Any = 0,
     U8 = 1,
