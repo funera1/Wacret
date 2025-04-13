@@ -16,12 +16,9 @@ pub enum CompiledOp {
     Other,
 }
 
-#[derive(Serialize, Deserialize, Eq, Hash, PartialEq)]
-pub struct Offset(u32);
 
-#[derive(Serialize, Deserialize)]
-pub struct Stack(Vec<(CompiledOp, WasmType)>);
-
+pub type Offset = u32;
+pub type Stack = Vec<(CompiledOp, WasmType)>;
 #[derive(Serialize, Deserialize)]
 pub struct StackTable {
     pub inner: IndexMap<Offset, Stack>,
@@ -72,7 +69,7 @@ impl StackTables {
 
 /// CodePos → (Offset, Stack) に変換
 pub fn from_codepos(codepos: CodePos) -> (Offset, Stack) {
-    let offset = Offset(codepos.offset);
+    let offset = codepos.offset;
 
     let stack_vec = codepos
         .stack
@@ -91,5 +88,5 @@ pub fn from_codepos(codepos: CodePos) -> (Offset, Stack) {
         })
         .collect();
 
-    (offset, Stack(stack_vec))
+    (offset, stack_vec)
 }
