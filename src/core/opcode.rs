@@ -1,6 +1,5 @@
 use wasmparser::Operator;
 use crate::core::val::{WasmType, valtype_to_wasmtype};
-use crate::core::module::Module;
 use crate::core::function_v2::BytecodeFunction;
 
 pub struct OpInfo {
@@ -53,8 +52,8 @@ impl<'a> BytecodeFunction<'a> {
             }
             Operator::End{ .. } => {
                 // TODO: 挙動をちゃんと調べる
-                let i: Vec<WasmType> = vec![];
-                let o: Vec<WasmType> = vec![];
+                // let i: Vec<WasmType> = vec![];
+                // let o: Vec<WasmType> = vec![];
 
                 return OpInfo {
                     input: vec![],
@@ -64,8 +63,8 @@ impl<'a> BytecodeFunction<'a> {
             Operator::Br{..} => {
                 // [t1*, t*] -> [t2*]
                 // NOTE: この位置では型スタックは変化しない
-                let i: Vec<WasmType> = vec![];
-                let o: Vec<WasmType> = vec![];
+                // let i: Vec<WasmType> = vec![];
+                // let o: Vec<WasmType> = vec![];
 
                 return OpInfo {
                     input: vec![],

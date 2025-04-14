@@ -4,7 +4,6 @@ use wasmparser::{FunctionBody, FuncType, GlobalType, BlockType, ValType};
 
 use crate::core::function::{Function, BytecodeFunction, ImportFunction, CodePos, valtype_to_size};
 use crate::core::function_v2;
-use crate::core::val::{WasmType, valtype_to_wasmtype};
 
 pub struct Fn<'a> {
     pub fidx: u32,
@@ -64,7 +63,7 @@ impl<'a> Module<'a> {
         return Ok(ret);
     }
 
-    pub fn parse_v2(&self) -> Result<Vec<function_v2::Function>> {
+    pub fn new_function_v2(&self) -> Result<Vec<function_v2::Function>> {
         let ret: Vec<function_v2::Function> = self
             .funcs
             .iter()

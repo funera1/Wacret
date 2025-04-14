@@ -2,7 +2,6 @@ use wasmparser::{FunctionBody, Operator, ValType, FuncType, BlockType};
 use anyhow::Result;
 
 use crate::core::module::Module;
-use crate::core::val::WasmType;
 
 pub enum Function<'a> {
     ImportFunction(ImportFunction),
