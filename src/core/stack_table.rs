@@ -59,11 +59,11 @@ impl StackTables {
     }
 
     pub fn serialize(&self) -> Vec<u8> {
-        rmp_serde::to_vec_named(self).unwrap()
+        rmp_serde::to_vec_named(self).expect("Failed to serialize StackTables")
     }
 
     pub fn deserialize(data: &[u8]) -> Self {
-        rmp_serde::from_slice(data).unwrap()
+        rmp_serde::from_slice(data).expect("Failed to deserialize StackTables")
     }
     
     pub fn get_stack(&self, fidx: usize, offset: u32) -> Result<&Stack> {
