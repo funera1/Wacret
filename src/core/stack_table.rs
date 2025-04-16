@@ -13,7 +13,7 @@ pub enum CompiledOp {
     F32Const(u32),
     I64Const(i64),
     F64Const(u64),
-    Other,
+    Other(WasmType),
 }
 
 
@@ -100,7 +100,7 @@ pub fn from_codepos(codepos: CodePos) -> (Offset, Stack) {
                 Operator::F32Const { value } => CompiledOp::F32Const(value.bits()),
                 Operator::I64Const { value } => CompiledOp::I64Const(value),
                 Operator::F64Const { value } => CompiledOp::F64Const(value.bits()),
-                _ => CompiledOp::Other,
+                _ => CompiledOp::Other(typ),
             };
             (op, typ)
         })
