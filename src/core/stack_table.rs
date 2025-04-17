@@ -74,6 +74,11 @@ impl StackTables {
         rmp_serde::from_slice(data).expect("Failed to deserialize StackTables")
     }
     
+    pub fn get_locals(&self, fidx: usize) -> Result<&Vec<WasmType>> {
+        let s = &self.0[fidx];
+        Ok(&s.locals)
+    }
+    
     pub fn get_stack(&self, fidx: usize, offset: u32) -> Result<&Stack> {
         let s = &self.0[fidx];
         s.inner
