@@ -24,12 +24,13 @@ pub type Offset = u32;
 pub type Stack = Vec<(CompiledOp, WasmType)>;
 #[derive(Serialize, Deserialize)]
 pub struct StackTable {
+    locals: Vec<WasmType>,
     inner: IndexMap<Offset, Stack>,
 }
 
 impl StackTable {
-    pub fn new(inner: IndexMap<Offset, Stack>) -> Self {
-        Self { inner }
+    pub fn new(locals: Vec<WasmType>, inner: IndexMap<Offset, Stack>) -> Self {
+        Self { locals, inner }
     }
 }
 
@@ -53,8 +54,12 @@ impl StackTables {
         // Vec<Vec<CodePos>> → Vec<StackTable> に変換
         let stack_tables = stack_tables_iter
             .map(|(f, codepos_vec)| {
+                let locals = match f {
+                    Function::ImportFunction(_) => vec![],
+                    Function::BytecodeFunction(bf) => bf.locals.clone(),
+                };
                 let inner = codepos_vec.into_iter().map(|codepos| from_codepos(&f, codepos)).collect();
-                StackTable::new(inner)
+                StackTable::new(locals, inner)
             })
             .collect();
 
