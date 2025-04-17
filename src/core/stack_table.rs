@@ -6,6 +6,8 @@ use wasmparser::Operator;
 use crate::core::function_v2::{CodePos, Function};
 use crate::core::val::WasmType;
 
+use super::function_v2;
+
 #[derive(Serialize, Deserialize)]
 pub enum CompiledOp {
     LocalGet(u32),
@@ -13,6 +15,7 @@ pub enum CompiledOp {
     F32Const(u32),
     I64Const(i64),
     F64Const(u64),
+    Call(u32),
     Other(WasmType),
 }
 
@@ -36,21 +39,21 @@ pub struct StackTables(pub Vec<StackTable>);
 impl StackTables {
     /// 関数リストから StackTables を構築する
     pub fn from_func(funcs: Vec<Function<'_>>) -> Result<Self> {
-        let stack_tables = funcs
+        let stack_tables_iter = funcs
             .iter()
             .map(|f| match f {
-                Function::ImportFunction(_) => Vec::new(),
-                Function::BytecodeFunction(f) => {
-                    f.create_stack_table().expect("Failed to create stack table from BytecodeFunction")
+                Function::ImportFunction(_) => (f, Vec::new()),
+                Function::BytecodeFunction(bf) => {
+                    let table = bf.create_stack_table().expect("Failed to create stack table from BytecodeFunction");
+                    (f, table)
                 }
-            })
-            .collect::<Vec<_>>();
+            });
+            // .collect::<Vec<_>>();
 
         // Vec<Vec<CodePos>> → Vec<StackTable> に変換
-        let stack_tables = stack_tables
-            .into_iter()
-            .map(|st| {
-                let inner = st.into_iter().map(from_codepos).collect();
+        let stack_tables = stack_tables_iter
+            .map(|(f, codepos_vec)| {
+                let inner = codepos_vec.into_iter().map(|codepos| from_codepos(&f, codepos)).collect();
                 StackTable::new(inner)
             })
             .collect();
@@ -86,7 +89,7 @@ impl StackTables {
 }
 
 /// CodePos → (Offset, Stack) に変換
-pub fn from_codepos(codepos: CodePos) -> (Offset, Stack) {
+pub fn from_codepos(func: &function_v2::Function, codepos: CodePos) -> (Offset, Stack) {
     let offset = codepos.offset;
 
     let stack_vec = codepos
@@ -100,6 +103,11 @@ pub fn from_codepos(codepos: CodePos) -> (Offset, Stack) {
                 Operator::F32Const { value } => CompiledOp::F32Const(value.bits()),
                 Operator::I64Const { value } => CompiledOp::I64Const(value),
                 Operator::F64Const { value } => CompiledOp::F64Const(value.bits()),
+                Operator::Call { function_index } => {
+                    let func_type = func.module().get_type_by_func(function_index);
+                    let result_size = func_type.results().len();
+                    CompiledOp::Call(result_size as u32)
+                },
                 _ => CompiledOp::Other(typ),
             };
             (op, typ)

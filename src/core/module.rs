@@ -76,7 +76,7 @@ impl<'a> Module<'a> {
                     }
                     None => {
                         log::debug!("{}th function is import_function", i);
-                        let f = function_v2::ImportFunction::new();
+                        let f = function_v2::ImportFunction::new(self);
                         function_v2::Function::ImportFunction(f)
                     }
                 }

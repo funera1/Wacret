@@ -6,17 +6,26 @@ use crate::core::module::Module;
 use crate::core::opcode::OpInfo;
 
 pub enum Function<'a> {
-    ImportFunction(ImportFunction),
+    ImportFunction(ImportFunction<'a>),
     BytecodeFunction(BytecodeFunction<'a>),
 }
 
-pub struct ImportFunction {
-
+impl<'a> Function<'a> {
+    pub fn module(&self) -> &Module<'a> {
+        match self {
+            Function::ImportFunction(f) => f.module,
+            Function::BytecodeFunction(f) => f.module,
+        }
+    }
 }
 
-impl ImportFunction {
-    pub fn new() -> Self {
-        Self{}
+pub struct ImportFunction<'a> {
+    pub module: &'a Module<'a>,
+}
+
+impl<'a> ImportFunction<'a> {
+    pub fn new(module: &'a Module<'a>) -> Self {
+        Self{module}
     }
 }
 
