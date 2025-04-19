@@ -63,6 +63,9 @@ impl<'a> BytecodeFunction<'a> {
             let (count, typ) = local.expect("Failed to read local");
             locals.extend(std::iter::repeat(valtype_to_wasmtype(&typ)).take(count as usize));
         }
+        
+        // debug
+        println!("(fidx, local size): {:?}", (fidx, locals.len()));
 
         Self {
             module,
@@ -83,13 +86,12 @@ impl<'a> BytecodeFunction<'a> {
         let mut stack = Stack::new();
         let mut stack_table = vec![];
         while !reader.eof() {
-            let offset = reader.original_position() as u32 - base_offset;
             let op = reader.read()?;
-            
             let opinfo = self.opinfo(&op);
-            stack_apply(&mut stack, &op, &opinfo);
             
             // stackをcopy
+            let offset = reader.original_position() as u32 - base_offset;
+            stack_apply(&mut stack, &op, &opinfo);
             stack_table.push(CodePos::new(op.clone(), offset, stack.clone()));
         }
 
