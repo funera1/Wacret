@@ -32,6 +32,10 @@ impl StackTable {
     pub fn new(locals: Vec<WasmType>, inner: IndexMap<Offset, Stack>) -> Self {
         Self { locals, inner }
     }
+    
+    pub fn inner(&self) -> &IndexMap<Offset, Stack> {
+        &self.inner
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -95,6 +99,10 @@ impl StackTables {
         } else {
             Err(anyhow::anyhow!("Stack not found for index {}", n))
         }
+    }
+    
+    pub fn iter(&self) -> std::slice::Iter<'_, StackTable> {
+        self.0.iter()
     }
 }
 
