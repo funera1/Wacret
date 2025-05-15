@@ -136,6 +136,9 @@ impl<'a> BytecodeFunction<'a> {
                 };
             }
             Operator::Select{ .. } => {
+                // NOTE: don't emit any types
+                unimplemented!("Not supported yet");
+
                 // [Any, Any, U32] -> [Any]
                 let i = vec![WasmType::Any, WasmType::Any, WasmType::I32];
                 let o = vec![WasmType::Any];
@@ -146,6 +149,9 @@ impl<'a> BytecodeFunction<'a> {
                 };
             }
             Operator::TypedSelect{ .. } => {
+                // NOTE: don't emit any types
+                unimplemented!("Not supported yet");
+
                 // [Any, Any, U32] -> [Any]
                 let i = vec![WasmType::Any, WasmType::Any, WasmType::I32];
                 let o = vec![WasmType::Any];
@@ -176,7 +182,7 @@ impl<'a> BytecodeFunction<'a> {
                 };
             }
             Operator::LocalTee{ .. } => {
-                // [Any] -> [Any]
+                // [] -> []
                 let i = vec![];
                 let o = vec![];
 
@@ -186,7 +192,7 @@ impl<'a> BytecodeFunction<'a> {
                 };
             }
             Operator::GlobalGet{ global_index } => {
-                // [] -> [Any]
+                // [] -> [global type]
                 let global_type = self.module.get_type_by_global(*global_index);
                 return OpInfo {
                     input: vec![],
