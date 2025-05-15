@@ -177,9 +177,8 @@ impl<'a> BytecodeFunction<'a> {
             }
             Operator::LocalTee{ .. } => {
                 // [Any] -> [Any]
-                let i = vec![WasmType::Any];
-                let o = vec![WasmType::Any];                
-               //  let f = self.get_type_by_type(type_index);
+                let i = vec![];
+                let o = vec![];
 
                 return OpInfo {
                     input: i,
