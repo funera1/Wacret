@@ -3,7 +3,7 @@ mod core;
 mod command;
 mod compile;
 
-use command::{create_table, create_table_v2};
+use command::{create_table, create_table_v2, view};
 
 use env_logger;
 // use log::{debug, error, log_enabled, info, Level};
@@ -27,8 +27,16 @@ struct Cli {
 enum SubCommands {
     /// Create type stack tables for checkpointing a wasm app.
     Create(CreateArgs),
+    /// Display stack tables in human-readable format
     Display {
         path: Utf8PathBuf,
+    },
+    /// View protobuf files in JSON format
+    View {
+        path: Utf8PathBuf,
+        /// Use v1 format parser
+        #[arg(short = '1', long = "v1")]
+        v1: bool,
     }
 }
 
@@ -66,6 +74,17 @@ fn main() {
         },
         SubCommands::Display { .. } => {
             todo!();
+        },
+        SubCommands::View { path, v1 } => {
+            let result = if v1 {
+                view::view_v1_format(path)
+            } else {
+                view::view_protobuf(path)
+            };
+            match result {
+                Ok(_) => log::info!("Successfully displayed file"),
+                Err(err) => log::error!("Failed to view file: {}", err)
+            }
         }
         // SubCommands::Display { path } => {
             // let result = display::main(path);
