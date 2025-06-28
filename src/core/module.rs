@@ -3,6 +3,7 @@ use wasmparser::{Parser, Payload, TypeRef};
 use wasmparser::{FunctionBody, FuncType, GlobalType, BlockType, ValType};
 
 use crate::core::function::{Function, BytecodeFunction, ImportFunction, CodePos, valtype_to_size};
+use crate::core::function_v2;
 
 pub struct Fn<'a> {
     pub fidx: u32,
@@ -32,7 +33,7 @@ impl<'a> Module<'a> {
         return &self.types[type_idx as usize];
     }
 
-    pub fn get_global_type(&self, global_idx: u32) -> &ValType {
+    pub fn get_type_by_global(&self, global_idx: u32) -> &ValType {
         return &self.globals[global_idx as usize].content_type;
     }
 
@@ -60,6 +61,28 @@ impl<'a> Module<'a> {
             };
         }
         return Ok(ret);
+    }
+
+    pub fn new_function_v2(&self) -> Result<Vec<function_v2::Function>> {
+        let ret: Vec<function_v2::Function> = self
+            .funcs
+            .iter()
+            .enumerate()
+            .map(|(i, func)| {
+                match &func.body {
+                    Some(body) => {
+                        let f = function_v2::BytecodeFunction::new(self, body, i as u32);
+                        function_v2::Function::BytecodeFunction(f)
+                    }
+                    None => {
+                        log::debug!("{}th function is import_function", i);
+                        let f = function_v2::ImportFunction::new(self);
+                        function_v2::Function::ImportFunction(f)
+                    }
+                }
+            })
+            .collect();
+        Ok(ret)    
     }
 
     pub fn get_locals(&self, fidx: u32) -> Result<Vec<u8>> {
