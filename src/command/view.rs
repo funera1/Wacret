@@ -1,6 +1,7 @@
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use prost::Message;
+use serde::Serialize;
 use serde_json;
 use std::fs;
 
@@ -9,7 +10,7 @@ pub mod state {
     include!(concat!(env!("OUT_DIR"), "/state.rs"));
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize)]
 struct Label {
     begin_addr: u32,
     target_addr: u32,
@@ -25,6 +26,24 @@ impl std::fmt::Display for Label {
                self.begin_addr, self.target_addr, self.sp, 
                self.tsp, self.cell_num, self.count)
     }
+}
+
+#[derive(Serialize)]
+struct V1FormatData {
+    #[serde(rename = "EntryFuncIdx")]
+    entry_func_idx: u32,
+    #[serde(rename = "ReturnAddress")]
+    return_address: (u32, u32),
+    #[serde(rename = "StackSize")]
+    stack_size: u32,
+    #[serde(rename = "TypeStack")]
+    type_stack: Vec<u8>,
+    #[serde(rename = "ValueStack")]
+    value_stack: Vec<i64>,
+    #[serde(rename = "LabelStackSize")]
+    label_stack_size: u32,
+    #[serde(rename = "LabelStack")]
+    label_stack: Vec<Label>,
 }
 
 /// Convert bytes to integer value, mimicking Python's to_int function
@@ -52,7 +71,7 @@ fn bytes_to_int(bytes: &[u8]) -> Result<i64> {
 
 /// Parse and display a v1 format binary file
 /// This implements the equivalent functionality of the Python parser script
-pub fn view_v1_format(path: Utf8PathBuf) -> Result<()> {
+pub fn view_v1_format(path: Utf8PathBuf, json_output: bool) -> Result<()> {
     let data = fs::read(&path)?;
     let mut cursor = 0;
 
@@ -138,18 +157,35 @@ pub fn view_v1_format(path: Utf8PathBuf) -> Result<()> {
         label_stack.push(label);
     }
 
-    // Display results
-    println!("EntryFuncIdx: {}", entry_fidx);
-    println!("ReturnAddress: {}, {}", return_fidx, return_offset);
-    println!("StackSize: {}", type_stack_size);
-    println!("TypeStack: {:?}", type_stack);
-    println!("ValueStack: {:?}", value_stack);
-    println!("LabelStackSize: {}", label_stack_size);
-    println!("LabelStack: [");
-    for label in &label_stack {
-        println!("\t{}", label);
+    // Output results in requested format
+    if json_output {
+        // JSON output
+        let output = V1FormatData {
+            entry_func_idx: entry_fidx,
+            return_address: (return_fidx, return_offset),
+            stack_size: type_stack_size,
+            type_stack,
+            value_stack,
+            label_stack_size,
+            label_stack,
+        };
+        
+        let json = serde_json::to_string_pretty(&output)?;
+        println!("{}", json);
+    } else {
+        // Original format output
+        println!("EntryFuncIdx: {}", entry_fidx);
+        println!("ReturnAddress: {}, {}", return_fidx, return_offset);
+        println!("StackSize: {}", type_stack_size);
+        println!("TypeStack: {:?}", type_stack);
+        println!("ValueStack: {:?}", value_stack);
+        println!("LabelStackSize: {}", label_stack_size);
+        println!("LabelStack: [");
+        for label in &label_stack {
+            println!("\t{}", label);
+        }
+        println!("]");
     }
-    println!("]");
 
     Ok(())
 }

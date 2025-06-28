@@ -37,6 +37,9 @@ enum SubCommands {
         /// Use v1 format parser
         #[arg(short = '1', long = "v1")]
         v1: bool,
+        /// Output in JSON format
+        #[arg(short, long)]
+        json: bool,
     }
 }
 
@@ -75,9 +78,9 @@ fn main() {
         SubCommands::Display { .. } => {
             todo!();
         },
-        SubCommands::View { path, v1 } => {
+        SubCommands::View { path, v1, json } => {
             let result = if v1 {
-                view::view_v1_format(path)
+                view::view_v1_format(path, json)
             } else {
                 view::view_protobuf(path)
             };
