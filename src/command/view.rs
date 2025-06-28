@@ -27,25 +27,49 @@ impl std::fmt::Display for Label {
     }
 }
 
+/// Convert bytes to integer value, mimicking Python's to_int function
+fn bytes_to_int(bytes: &[u8]) -> Result<i64> {
+    match bytes.len() {
+        4 => {
+            let raw = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+            // Handle negative values as per Python's to_int logic
+            if raw > 0xffff0000 {
+                Ok((raw as i64) - 0x100000000i64)
+            } else {
+                Ok(raw as i64)
+            }
+        },
+        8 => {
+            let low = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as u64;
+            let high = u32::from_le_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]) as u64;
+            let raw = (high << 32) | low;
+            Ok(raw as i64)
+        },
+        0 => Ok(0i64),
+        _ => anyhow::bail!("Unsupported byte length: {}", bytes.len()),
+    }
+}
+
+/// Parse and display a v1 format binary file
+/// This implements the equivalent functionality of the Python parser script
 pub fn view_v1_format(path: Utf8PathBuf) -> Result<()> {
     let data = fs::read(&path)?;
     let mut cursor = 0;
 
-    println!("File size: {} bytes", data.len());
-
-    // Helper function to read bytes as little-endian integer
+    // Helper functions for reading binary data in little-endian format
     let read_u32 = |cursor: &mut usize| -> Result<u32> {
         if *cursor + 4 > data.len() {
-            anyhow::bail!("Unexpected end of file while reading u32 at position {}, file size: {}", *cursor, data.len());
+            anyhow::bail!("Unexpected end of file while reading u32");
         }
         let bytes = &data[*cursor..*cursor + 4];
         *cursor += 4;
         Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
     };
 
+    // Read u32 or return 0 if at end of file (handles truncated label data)
     let read_u32_or_zero = |cursor: &mut usize| -> u32 {
         if *cursor + 4 > data.len() {
-            0 // ファイル終端に達した場合は0を返す
+            0
         } else {
             let bytes = &data[*cursor..*cursor + 4];
             *cursor += 4;
@@ -55,123 +79,66 @@ pub fn view_v1_format(path: Utf8PathBuf) -> Result<()> {
 
     let read_u8 = |cursor: &mut usize| -> Result<u8> {
         if *cursor >= data.len() {
-            anyhow::bail!("Unexpected end of file while reading u8 at position {}, file size: {}", *cursor, data.len());
+            anyhow::bail!("Unexpected end of file while reading u8");
         }
         let byte = data[*cursor];
         *cursor += 1;
         Ok(byte)
     };
 
-    // エントリー関数
+    // Read entry function index
     let entry_fidx = read_u32(&mut cursor)?;
-    println!("Read entry_fidx: {} at position {}", entry_fidx, cursor);
     
-    // リターンアドレス
+    // Read return address
     let return_fidx = read_u32(&mut cursor)?;
-    println!("Read return_fidx: {} at position {}", return_fidx, cursor);
     let return_offset = read_u32(&mut cursor)?;
-    println!("Read return_offset: {} at position {}", return_offset, cursor);
     
-    // 型スタック
+    // Read type stack
     let type_stack_size = read_u32(&mut cursor)?;
-    println!("Read type_stack_size: {} at position {}", type_stack_size, cursor);
     let mut type_stack = Vec::new();
-    for i in 0..type_stack_size {
+    for _ in 0..type_stack_size {
         let typ = read_u8(&mut cursor)?;
         type_stack.push(typ);
-        if i < 10 || i == type_stack_size - 1 {
-            println!("Read type[{}]: {} at position {}", i, typ, cursor);
-        } else if i == 10 {
-            println!("... (skipping type output) ...");
-        }
     }
-    println!("Finished reading type stack at position {}", cursor);
 
-    // 値スタック
-    println!("Starting value stack reading at position {}", cursor);
+    // Read value stack
     let mut value_stack = Vec::new();
     for i in 0..type_stack_size {
         let typ = type_stack[i as usize];
-        // Pythonコードでは 4 * type_stack[i] バイト読み取っている
         let byte_count = (typ as usize) * 4;
-        println!("Reading value[{}]: type={}, byte_count={} at position {}", i, typ, byte_count, cursor);
-        let mut value_bytes = Vec::new();
         
-        for j in 0..byte_count {
+        // Read bytes for this value
+        let mut value_bytes = Vec::new();
+        for _ in 0..byte_count {
             if cursor >= data.len() {
-                anyhow::bail!("Unexpected end of file while reading value stack at position {}, byte {} of {}", cursor, j, byte_count);
+                anyhow::bail!("Unexpected end of file while reading value stack");
             }
             value_bytes.push(data[cursor]);
             cursor += 1;
         }
         
-        // バイト配列を適切な値に変換 - Pythonのto_int相当の処理
-        let value: i64 = match byte_count {
-            4 => {
-                if value_bytes.len() >= 4 {
-                    let raw = u32::from_le_bytes([value_bytes[0], value_bytes[1], value_bytes[2], value_bytes[3]]);
-                    // Pythonのto_int関数のロジック: 0xffff0000より大きい場合は負の値として扱う
-                    if raw > 0xffff0000 {
-                        (raw as i64) - 0x100000000i64
-                    } else {
-                        raw as i64
-                    }
-                } else {
-                    0i64
-                }
-            },
-            8 => {
-                if value_bytes.len() >= 8 {
-                    let low = u32::from_le_bytes([value_bytes[0], value_bytes[1], value_bytes[2], value_bytes[3]]) as u64;
-                    let high = u32::from_le_bytes([value_bytes[4], value_bytes[5], value_bytes[6], value_bytes[7]]) as u64;
-                    let raw = (high << 32) | low;
-                    raw as i64
-                } else {
-                    0i64
-                }
-            },
-            _ => 0i64,
-        };
+        // Convert bytes to value (equivalent to Python's to_int function)
+        let value = bytes_to_int(&value_bytes)?;
         value_stack.push(value);
-        
-        if i < 5 || i == type_stack_size - 1 {
-            println!("Read value[{}]: {} (0x{:x}) at position {}", i, value, value as u64, cursor);
-        } else if i == 5 {
-            println!("... (skipping value output) ...");
-        }
     }
-    println!("Finished reading value stack at position {}", cursor);
 
-    // ラベルスタック
-    println!("Starting label stack reading at position {}", cursor);
+    // Read label stack
     let label_stack_size = read_u32(&mut cursor)?;
-    println!("Read label_stack_size: {} at position {}", label_stack_size, cursor);
-    
     let mut label_stack = Vec::new();
-    for i in 0..label_stack_size {
-        println!("Reading label[{}] at position {}", i, cursor);
-        let begin_addr = read_u32_or_zero(&mut cursor);
-        let target_addr = read_u32_or_zero(&mut cursor);
-        let sp = read_u32_or_zero(&mut cursor);
-        let tsp = read_u32_or_zero(&mut cursor);
-        let cell_num = read_u32_or_zero(&mut cursor);
-        let count = read_u32_or_zero(&mut cursor);
-
+    
+    for _ in 0..label_stack_size {
         let label = Label {
-            begin_addr,
-            target_addr,
-            sp,
-            tsp,
-            cell_num,
-            count,
+            begin_addr: read_u32_or_zero(&mut cursor),
+            target_addr: read_u32_or_zero(&mut cursor),
+            sp: read_u32_or_zero(&mut cursor),
+            tsp: read_u32_or_zero(&mut cursor),
+            cell_num: read_u32_or_zero(&mut cursor),
+            count: read_u32_or_zero(&mut cursor),
         };
-        println!("Read label[{}]: {} at position {}", i, label, cursor);
         label_stack.push(label);
     }
-    
-    println!("Finished reading label stack at position {}", cursor);
 
-    // print
+    // Display results
     println!("EntryFuncIdx: {}", entry_fidx);
     println!("ReturnAddress: {}, {}", return_fidx, return_offset);
     println!("StackSize: {}", type_stack_size);
