@@ -69,54 +69,55 @@ fn bytes_to_int(bytes: &[u8]) -> Result<i64> {
     }
 }
 
+/// Helper function to read a u32 value from binary data
+fn read_u32(cursor: &mut usize, data: &[u8]) -> Result<u32> {
+    if *cursor + 4 > data.len() {
+        anyhow::bail!("Unexpected end of file while reading u32");
+    }
+    let bytes = &data[*cursor..*cursor + 4];
+    *cursor += 4;
+    Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+}
+
+/// Helper function to read a u32 value or return 0 if at the end of the file
+fn read_u32_or_zero(cursor: &mut usize, data: &[u8]) -> u32 {
+    if *cursor + 4 > data.len() {
+        0
+    } else {
+        let bytes = &data[*cursor..*cursor + 4];
+        *cursor += 4;
+        u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+    }
+}
+
+/// Helper function to read a u8 value from binary data
+fn read_u8(cursor: &mut usize, data: &[u8]) -> Result<u8> {
+    if *cursor >= data.len() {
+        anyhow::bail!("Unexpected end of file while reading u8");
+    }
+    let byte = data[*cursor];
+    *cursor += 1;
+    Ok(byte)
+}
+
 /// Parse and display a v1 format binary file
 /// This implements the equivalent functionality of the Python parser script
 pub fn view_v1_format(path: Utf8PathBuf, json_output: bool) -> Result<()> {
     let data = fs::read(&path)?;
     let mut cursor = 0;
 
-    // Helper functions for reading binary data in little-endian format
-    let read_u32 = |cursor: &mut usize| -> Result<u32> {
-        if *cursor + 4 > data.len() {
-            anyhow::bail!("Unexpected end of file while reading u32");
-        }
-        let bytes = &data[*cursor..*cursor + 4];
-        *cursor += 4;
-        Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
-    };
-
-    // Read u32 or return 0 if at end of file (handles truncated label data)
-    let read_u32_or_zero = |cursor: &mut usize| -> u32 {
-        if *cursor + 4 > data.len() {
-            0
-        } else {
-            let bytes = &data[*cursor..*cursor + 4];
-            *cursor += 4;
-            u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
-        }
-    };
-
-    let read_u8 = |cursor: &mut usize| -> Result<u8> {
-        if *cursor >= data.len() {
-            anyhow::bail!("Unexpected end of file while reading u8");
-        }
-        let byte = data[*cursor];
-        *cursor += 1;
-        Ok(byte)
-    };
-
     // Read entry function index
-    let entry_fidx = read_u32(&mut cursor)?;
+    let entry_fidx = read_u32(&mut cursor, &data)?;
     
     // Read return address
-    let return_fidx = read_u32(&mut cursor)?;
-    let return_offset = read_u32(&mut cursor)?;
+    let return_fidx = read_u32(&mut cursor, &data)?;
+    let return_offset = read_u32(&mut cursor, &data)?;
     
     // Read type stack
-    let type_stack_size = read_u32(&mut cursor)?;
+    let type_stack_size = read_u32(&mut cursor, &data)?;
     let mut type_stack = Vec::new();
     for _ in 0..type_stack_size {
-        let typ = read_u8(&mut cursor)?;
+        let typ = read_u8(&mut cursor, &data)?;
         type_stack.push(typ);
     }
 
@@ -142,17 +143,17 @@ pub fn view_v1_format(path: Utf8PathBuf, json_output: bool) -> Result<()> {
     }
 
     // Read label stack
-    let label_stack_size = read_u32(&mut cursor)?;
+    let label_stack_size = read_u32(&mut cursor, &data)?;
     let mut label_stack = Vec::new();
     
     for _ in 0..label_stack_size {
         let label = Label {
-            begin_addr: read_u32_or_zero(&mut cursor),
-            target_addr: read_u32_or_zero(&mut cursor),
-            sp: read_u32_or_zero(&mut cursor),
-            tsp: read_u32_or_zero(&mut cursor),
-            cell_num: read_u32_or_zero(&mut cursor),
-            count: read_u32_or_zero(&mut cursor),
+            begin_addr: read_u32_or_zero(&mut cursor, &data),
+            target_addr: read_u32_or_zero(&mut cursor, &data),
+            sp: read_u32_or_zero(&mut cursor, &data),
+            tsp: read_u32_or_zero(&mut cursor, &data),
+            cell_num: read_u32_or_zero(&mut cursor, &data),
+            count: read_u32_or_zero(&mut cursor, &data),
         };
         label_stack.push(label);
     }
@@ -276,4 +277,45 @@ fn label_stack_to_json(label_stack: &state::LabelStack) -> serde_json::Value {
         "stack_pointers": label_stack.stack_pointers,
         "cell_nums": label_stack.cell_nums
     })
+}
+
+fn parse_typed_array(cursor: &mut usize, data: &[u8]) -> Result<serde_json::Value> {
+    let type_stack_size = read_u32(cursor, data)?;
+    let mut types = Vec::new();
+    for _ in 0..type_stack_size {
+        types.push(read_u8(cursor, data)?);
+    }
+
+    let mut values = Vec::new();
+    for typ in &types {
+        let byte_count = (*typ as usize) * 4;
+        let mut value_bytes = vec![0; byte_count];
+        value_bytes.copy_from_slice(&data[*cursor..*cursor + byte_count]);
+        *cursor += byte_count;
+        values.push(bytes_to_int(&value_bytes)?);
+    }
+
+    Ok(serde_json::json!({ "types": types, "values": values }))
+}
+
+fn parse_label_stack(cursor: &mut usize, data: &[u8]) -> Result<serde_json::Value> {
+    let label_stack_size = read_u32(cursor, data)?;
+    let mut begins = Vec::new();
+    let mut targets = Vec::new();
+    let mut stack_pointers = Vec::new();
+    let mut cell_nums = Vec::new();
+
+    for _ in 0..label_stack_size {
+        begins.push(read_u32_or_zero(cursor, data));
+        targets.push(read_u32_or_zero(cursor, data));
+        stack_pointers.push(read_u32_or_zero(cursor, data));
+        cell_nums.push(read_u32_or_zero(cursor, data));
+    }
+
+    Ok(serde_json::json!({
+        "begins": begins,
+        "targets": targets,
+        "stack_pointers": stack_pointers,
+        "cell_nums": cell_nums
+    }))
 }
