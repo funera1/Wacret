@@ -42,6 +42,19 @@ pub struct V1FormatData {
     pub label_stack: Vec<Label>,
 }
 
+#[derive(Serialize)]
+pub struct V2Format {
+    pub entries: Vec<V2FormatEntry>,
+}
+
+#[derive(Serialize)]
+pub struct V2FormatEntry {
+    pub pc: Option<(u32, u64)>,
+    pub locals: Option<Vec<i64>>,
+    pub value_stack: Option<Vec<i64>>,
+    pub label_stack: Option<Vec<u32>>,
+}
+
 
 
 

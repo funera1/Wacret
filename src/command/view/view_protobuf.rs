@@ -2,41 +2,36 @@ use anyhow::Result;
 use camino::Utf8PathBuf;
 use prost::Message;
 use serde_json;
-use std::{any, fs};
+use std::{fs};
 
-use crate::command::view::utils::{code_pos_to_json, label_stack_to_json, typed_array_to_json};
-use crate::command::view::utils::state::{CallStack, CallStackEntry, CodePos};
+use crate::command::view::utils::state::CallStack;
+use crate::command::view::utils::{V2Format, V2FormatEntry};
 
-pub fn parse_protobuf(path: &Utf8PathBuf) -> Result<String> {
+pub fn parse_protobuf(path: &Utf8PathBuf) -> Result<V2Format> {
     // Read the protobuf file
     let data = fs::read(&path)?;
 
     // Try CallStack first (most likely to be the top-level message)
     if let Ok(call_stack) = CallStack::decode(&data[..]) {
-        let json = serde_json::to_string_pretty(&call_stack_to_json(&call_stack))?;
-        return Ok(json);
+        return Ok(V2Format {
+            entries: call_stack.entries.iter().map(|entry| {
+                // Map CallStackEntry to V2FormatEntry
+                V2FormatEntry {
+                    pc: entry.pc.as_ref().map(|pc| (pc.fidx, pc.offset)),
+                    locals: entry.locals.as_ref().and_then(|locals| locals.values.as_ref().map(|array| array.contents.iter().map(|&v| v as i64).collect())),
+                    value_stack: entry.value_stack.as_ref().and_then(|stack| stack.values.as_ref().map(|array| array.contents.iter().map(|&v| v as i64).collect())),
+                    label_stack: entry.label_stack.as_ref().map(|stack| stack.begins.clone()),
+                }
+            }).collect(),
+        });
     }
-    
+
     anyhow::bail!("Unable to decode protobuf file as any known message type");
 }
 
 pub fn view_protobuf(path: Utf8PathBuf) -> Result<()> {
-    let json = parse_protobuf(&path)?;
-    println!("{}", json);
+    let v2_format = parse_protobuf(&path)?;
+    let pretty_json = serde_json::to_string_pretty(&v2_format)?;
+    println!("{}", pretty_json);
     Ok(())
-}
-
-fn call_stack_to_json(call_stack: &CallStack) -> serde_json::Value {
-    serde_json::json!({
-        "entries": call_stack.entries.iter().map(call_stack_entry_to_json).collect::<Vec<_>>()
-    })
-}
-
-fn call_stack_entry_to_json(entry: &CallStackEntry) -> serde_json::Value {
-    serde_json::json!({
-        "pc": entry.pc.as_ref().map(code_pos_to_json),
-        "locals": entry.locals.as_ref().map(typed_array_to_json),
-        "value_stack": entry.value_stack.as_ref().map(typed_array_to_json),
-        "label_stack": entry.label_stack.as_ref().map(label_stack_to_json)
-    })
 }
