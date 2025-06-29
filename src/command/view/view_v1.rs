@@ -3,10 +3,10 @@ use camino::Utf8PathBuf;
 use serde_json;
 use std::fs;
 
-use super::utils::{read_u32, read_u32_or_zero, read_u8, bytes_to_int, Label, V1FormatData};
+use super::utils::{read_u32, read_u32_or_zero, read_u8, bytes_to_int, Label, UnifiedFormat};
 
 /// Parse a v1 format binary file and return the parsed data
-fn parse_v1_format(path: &Utf8PathBuf) -> Result<V1FormatData> {
+fn parse_v1_format(path: &Utf8PathBuf) -> Result<UnifiedFormat> {
     let data = fs::read(path)?;
     let mut cursor = 0;
 
@@ -14,7 +14,7 @@ fn parse_v1_format(path: &Utf8PathBuf) -> Result<V1FormatData> {
     let entry_fidx = read_u32(&mut cursor, &data)?;
 
     // Read return address
-    let return_fidx = read_u32(&mut cursor, &data)?;
+    let _return_fidx = read_u32(&mut cursor, &data)?;
     let return_offset = read_u32(&mut cursor, &data)?;
 
     // Read type stack
@@ -40,36 +40,35 @@ fn parse_v1_format(path: &Utf8PathBuf) -> Result<V1FormatData> {
             value_bytes.push(data[cursor]);
             cursor += 1;
         }
-
-        // Convert bytes to value (equivalent to Python's to_int function)
-        let value = bytes_to_int(&value_bytes)?;
-        value_stack.push(value);
+        value_stack.push(bytes_to_int(&value_bytes)?);
     }
 
     // Read label stack
     let label_stack_size = read_u32(&mut cursor, &data)?;
     let mut label_stack = Vec::new();
-
     for _ in 0..label_stack_size {
-        let label = Label {
-            begin_addr: read_u32_or_zero(&mut cursor, &data),
-            target_addr: read_u32_or_zero(&mut cursor, &data),
-            sp: read_u32_or_zero(&mut cursor, &data),
-            tsp: read_u32_or_zero(&mut cursor, &data),
-            cell_num: read_u32_or_zero(&mut cursor, &data),
-            count: read_u32_or_zero(&mut cursor, &data),
-        };
-        label_stack.push(label);
+        let begin_addr = read_u32_or_zero(&mut cursor, &data);
+        let target_addr = read_u32_or_zero(&mut cursor, &data);
+        let sp = read_u32_or_zero(&mut cursor, &data);
+        let tsp = read_u32_or_zero(&mut cursor, &data);
+        let cell_num = read_u32_or_zero(&mut cursor, &data);
+        let count = read_u32_or_zero(&mut cursor, &data);
+        label_stack.push(Label {
+            begin_addr,
+            target_addr,
+            sp,
+            tsp,
+            cell_num,
+            count,
+        });
     }
 
-    Ok(V1FormatData {
-        entry_func_idx: entry_fidx,
-        return_address: (return_fidx, return_offset),
-        stack_size: type_stack_size,
-        type_stack,
-        value_stack,
-        label_stack_size,
-        label_stack,
+    Ok(UnifiedFormat {
+        pc: Some((entry_fidx, return_offset as u64)),
+        locals: None, // V1 format does not have locals
+        value_stack: Some(value_stack),
+        label_stack: Some(label_stack.iter().map(|label| label.begin_addr).collect()),
+        type_stack: Some(type_stack),
     })
 }
 
@@ -85,17 +84,13 @@ pub fn view_v1_format(path: Utf8PathBuf, json_output: bool) -> Result<()> {
         println!("{}", json);
     } else {
         // Original format output
-        println!("EntryFuncIdx: {}", parsed_data.entry_func_idx);
-        println!("ReturnAddress: {}, {}", parsed_data.return_address.0, parsed_data.return_address.1);
-        println!("StackSize: {}", parsed_data.stack_size);
+        println!("EntryFuncIdx: {}", parsed_data.pc.map_or(0, |pc| pc.0));
+        println!("ReturnAddress: {:?}", parsed_data.pc);
+        println!("StackSize: {}", parsed_data.value_stack.as_ref().map_or(0, |stack| stack.len()));
         println!("TypeStack: {:?}", parsed_data.type_stack);
         println!("ValueStack: {:?}", parsed_data.value_stack);
-        println!("LabelStackSize: {}", parsed_data.label_stack_size);
-        println!("LabelStack: [");
-        for label in &parsed_data.label_stack {
-            println!("\t{}", label);
-        }
-        println!("]");
+        println!("LabelStackSize: {}", parsed_data.label_stack.as_ref().map_or(0, |stack| stack.len()));
+        println!("LabelStack: {:?}", parsed_data.label_stack);
     }
 
     Ok(())
