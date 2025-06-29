@@ -55,7 +55,7 @@ pub struct V2FormatEntry {
     pub label_stack: Option<Vec<u32>>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct UnifiedFormat {
     pub pc: Option<(u32, u64)>,
     pub locals: Option<Vec<i64>>,

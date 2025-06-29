@@ -80,7 +80,12 @@ pub fn view_v1_format(path: Utf8PathBuf, json_output: bool) -> Result<()> {
     // Output results in requested format
     if json_output {
         // JSON output
-        let json = serde_json::to_string_pretty(&parsed_data)?;
+        let json = serde_json::to_string_pretty(&serde_json::json!({
+            "pc": parsed_data.pc,
+            "type_stack": parsed_data.type_stack,
+            "value_stack": parsed_data.value_stack,
+            "label_stack": parsed_data.label_stack
+        }))?;
         println!("{}", json);
     } else {
         // Original format output
@@ -101,14 +106,16 @@ pub fn view_v1_format(path: Utf8PathBuf, json_output: bool) -> Result<()> {
 pub fn view_v1_format_multiple(paths: Vec<Utf8PathBuf>, json_output: bool) -> Result<()> {
     let mut call_stack = Vec::new();
 
-    for (frame_index, path) in paths.iter().enumerate() {
+    for path in paths.iter() {
         match parse_v1_format(path) {
             Ok(frame) => {
-                let frame_json = serde_json::json!({
-                    "frame_index": frame_index,
-                    "data": frame
+                call_stack.push(UnifiedFormat {
+                    pc: frame.pc,
+                    type_stack: frame.type_stack,
+                    value_stack: frame.value_stack,
+                    label_stack: frame.label_stack,
+                    locals: frame.locals,
                 });
-                call_stack.push(frame_json);
             }
             Err(e) => {
                 eprintln!("Failed to parse file {}: {}", path, e);
@@ -117,8 +124,8 @@ pub fn view_v1_format_multiple(paths: Vec<Utf8PathBuf>, json_output: bool) -> Re
     }
 
     if json_output {
-        let output = serde_json::json!({ "call_stack": call_stack });
-        println!("{}", serde_json::to_string_pretty(&output)?);
+        let output = serde_json::to_string_pretty(&call_stack)?;
+        println!("{}", output);
     } else {
         for frame in call_stack {
             println!("{:?}", frame);
