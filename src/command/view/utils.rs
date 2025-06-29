@@ -55,6 +55,15 @@ pub struct V2FormatEntry {
     pub label_stack: Option<Vec<u32>>,
 }
 
+#[derive(Serialize)]
+pub struct UnifiedFormat {
+    pub pc: Option<(u32, u64)>,
+    pub locals: Option<Vec<i64>>,
+    pub value_stack: Option<Vec<i64>>,
+    pub label_stack: Option<Vec<u32>>,
+    pub type_stack: Option<Vec<u8>>,
+}
+
 
 
 
@@ -111,39 +120,4 @@ pub fn read_u8(cursor: &mut usize, data: &[u8]) -> Result<u8> {
     let byte = data[*cursor];
     *cursor += 1;
     Ok(byte)
-}
-
-pub fn code_pos_to_json(code_pos: &state::CodePos) -> serde_json::Value {
-    serde_json::json!({
-        "fidx": code_pos.fidx,
-        "offset": code_pos.offset
-    })
-}
-
-pub fn typed_array_to_json(typed_array: &state::TypedArray) -> serde_json::Value {
-    serde_json::json!({
-        "types": typed_array.types.as_ref().map(array8_to_json),
-        "values": typed_array.values.as_ref().map(array32_to_json)
-    })
-}
-
-pub fn array8_to_json(array8: &state::Array8) -> serde_json::Value {
-    serde_json::json!({
-        "contents": array8.contents
-    })
-}
-
-pub fn array32_to_json(array32: &state::Array32) -> serde_json::Value {
-    serde_json::json!({
-        "contents": array32.contents
-    })
-}
-
-pub fn label_stack_to_json(label_stack: &state::LabelStack) -> serde_json::Value {
-    serde_json::json!({
-        "begins": label_stack.begins,
-        "targets": label_stack.targets,
-        "stack_pointers": label_stack.stack_pointers,
-        "cell_nums": label_stack.cell_nums
-    })
 }
