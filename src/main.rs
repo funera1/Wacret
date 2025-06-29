@@ -33,7 +33,7 @@ enum SubCommands {
     },
     /// View protobuf files in JSON format
     View {
-        path: Utf8PathBuf,
+        path: Vec<Utf8PathBuf>,
         /// Use v1 format parser
         #[arg(short = '1', long = "v1")]
         v1: bool,
@@ -79,14 +79,25 @@ fn main() {
             todo!();
         },
         SubCommands::View { path, v1, json } => {
-            let result = if v1 {
-                view::view_v1_format(path, json)
+            let result = if path.len() == 1 {
+                let single_path = path[0].clone();
+                if v1 {
+                    view::view_v1_format(single_path, json)
+                } else {
+                    view::view_protobuf(single_path)
+                }
             } else {
-                view::view_protobuf(path)
+                if v1 {
+                    view::view_v1_format_multiple(path, json)
+                } else {
+                    log::error!("Protobuf viewing does not support multiple files");
+                    Err(anyhow::anyhow!("Protobuf viewing does not support multiple files"))
+                }
             };
+
             match result {
-                Ok(_) => log::info!("Successfully displayed file"),
-                Err(err) => log::error!("Failed to view file: {}", err)
+                Ok(_) => log::info!("Successfully displayed file(s)"),
+                Err(err) => log::error!("Failed to view file(s): {}", err)
             }
         }
         // SubCommands::Display { path } => {

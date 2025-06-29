@@ -331,9 +331,18 @@ pub fn view_v1_format_multiple(paths: Vec<Utf8PathBuf>, json_output: bool) -> Re
     let mut call_stack = Vec::new();
 
     for (frame_index, path) in paths.iter().enumerate() {
-        let data = fs::read(path)?;
-        let frame = parse_v1_frame(&data, frame_index)?;
-        call_stack.push(frame);
+        match parse_v1_format(path) {
+            Ok(frame) => {
+                let frame_json = serde_json::json!({
+                    "frame_index": frame_index,
+                    "data": frame
+                });
+                call_stack.push(frame_json);
+            }
+            Err(e) => {
+                eprintln!("Failed to parse file {}: {}", path, e);
+            }
+        }
     }
 
     if json_output {
@@ -346,27 +355,4 @@ pub fn view_v1_format_multiple(paths: Vec<Utf8PathBuf>, json_output: bool) -> Re
     }
 
     Ok(())
-}
-
-/// Parse a single v1 frame from binary data
-fn parse_v1_frame(data: &[u8], frame_index: usize) -> Result<serde_json::Value> {
-    let mut cursor = 0;
-
-    let pc = {
-        let fidx = read_u32(&mut cursor, data)?;
-        let offset = read_u32(&mut cursor, data)?;
-        serde_json::json!({ "fidx": fidx, "offset": offset })
-    };
-
-    let locals = parse_typed_array(&mut cursor, data)?;
-    let value_stack = parse_typed_array(&mut cursor, data)?;
-    let label_stack = parse_label_stack(&mut cursor, data)?;
-
-    Ok(serde_json::json!({
-        "frame_index": frame_index,
-        "pc": pc,
-        "locals": locals,
-        "value_stack": value_stack,
-        "label_stack": label_stack
-    }))
 }
