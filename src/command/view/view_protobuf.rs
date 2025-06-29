@@ -2,40 +2,28 @@ use anyhow::Result;
 use camino::Utf8PathBuf;
 use prost::Message;
 use serde_json;
-use std::fs;
+use std::{any, fs};
 
 use crate::command::view::utils::{code_pos_to_json, label_stack_to_json, typed_array_to_json};
 use crate::command::view::utils::state::{CallStack, CallStackEntry, CodePos};
 
-pub fn view_protobuf(path: Utf8PathBuf) -> Result<()> {
+pub fn parse_protobuf(path: &Utf8PathBuf) -> Result<String> {
     // Read the protobuf file
     let data = fs::read(&path)?;
-    
-    // Try to decode as different message types
-    // Since we don't know the exact type, we'll try the most likely ones
-    
+
     // Try CallStack first (most likely to be the top-level message)
     if let Ok(call_stack) = CallStack::decode(&data[..]) {
         let json = serde_json::to_string_pretty(&call_stack_to_json(&call_stack))?;
-        println!("{}", json);
-        return Ok(());
-    }
-    
-    // Try CallStackEntry
-    if let Ok(entry) = CallStackEntry::decode(&data[..]) {
-        let json = serde_json::to_string_pretty(&call_stack_entry_to_json(&entry))?;
-        println!("{}", json);
-        return Ok(());
-    }
-    
-    // Try CodePos
-    if let Ok(code_pos) = CodePos::decode(&data[..]) {
-        let json = serde_json::to_string_pretty(&code_pos_to_json(&code_pos))?;
-        println!("{}", json);
-        return Ok(());
+        return Ok(json);
     }
     
     anyhow::bail!("Unable to decode protobuf file as any known message type");
+}
+
+pub fn view_protobuf(path: Utf8PathBuf) -> Result<()> {
+    let json = parse_protobuf(&path)?;
+    println!("{}", json);
+    Ok(())
 }
 
 fn call_stack_to_json(call_stack: &CallStack) -> serde_json::Value {
