@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package state;
+
+// CodePos に対応
+message CodePos {
+  uint32 fidx = 1;
+  uint64 offset = 2;
+}
+
+// Array8 に対応
+message Array8 {
+  bytes contents = 1; // uint8 は bytes でもいいが、扱いやすさを優先して repeated uint32 に
+}
+
+// Array32 に対応
+message Array32 {
+  repeated uint32 contents = 1;
+}
+
+// Array64 に対応
+message Array64 {
+  repeated uint64 contents = 1;
+}
+
+// TypedArray に対応
+message TypedArray {
+  Array8 types = 1;
+  Array32 values = 2;
+}
+
+// LabelStack に対応
+message LabelStack {
+  repeated uint32 begins = 1;
+  repeated uint32 targets = 2;
+  repeated uint32 stack_pointers = 3;
+  repeated uint32 cell_nums = 4;
+}
+
+// CallStackEntry に対応
+message CallStackEntry {
+  CodePos pc = 1;
+  TypedArray locals = 2;
+  TypedArray value_stack = 3;
+  LabelStack label_stack = 4;
+}
+
+// CallStack に対応
+message CallStack {
+  repeated CallStackEntry entries = 1;
+}

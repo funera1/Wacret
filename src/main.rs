@@ -3,7 +3,7 @@ mod core;
 mod command;
 mod compile;
 
-use command::{create_table, create_table_v2};
+use command::{create_table, create_table_v2, view};
 
 use env_logger;
 // use log::{debug, error, log_enabled, info, Level};
@@ -27,8 +27,19 @@ struct Cli {
 enum SubCommands {
     /// Create type stack tables for checkpointing a wasm app.
     Create(CreateArgs),
+    /// Display stack tables in human-readable format
     Display {
         path: Utf8PathBuf,
+    },
+    /// View protobuf files in JSON format
+    View {
+        path: Vec<Utf8PathBuf>,
+        /// Use v1 format parser
+        #[arg(short = '1', long = "v1")]
+        v1: bool,
+        /// Output in JSON format
+        #[arg(short, long)]
+        json: bool,
     }
 }
 
@@ -66,6 +77,28 @@ fn main() {
         },
         SubCommands::Display { .. } => {
             todo!();
+        },
+        SubCommands::View { path, v1, json } => {
+            let result = if path.len() == 1 {
+                let single_path = path[0].clone();
+                if v1 {
+                    view::view_v1_format(single_path, json)
+                } else {
+                    view::view_protobuf(single_path)
+                }
+            } else {
+                if v1 {
+                    view::view_v1_format_multiple(path, json)
+                } else {
+                    log::error!("Protobuf viewing does not support multiple files");
+                    Err(anyhow::anyhow!("Protobuf viewing does not support multiple files"))
+                }
+            };
+
+            match result {
+                Ok(_) => log::info!("Successfully displayed file(s)"),
+                Err(err) => log::error!("Failed to view file(s): {}", err)
+            }
         }
         // SubCommands::Display { path } => {
             // let result = display::main(path);
