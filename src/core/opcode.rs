@@ -137,7 +137,7 @@ impl<'a> BytecodeFunction<'a> {
             }
             Operator::Select{ .. } => {
                 // NOTE: don't emit any types
-                unimplemented!("Not supported yet");
+                // unimplemented!("Not supported yet");
 
                 // [Any, Any, U32] -> [Any]
                 let i = vec![WasmType::Any, WasmType::Any, WasmType::I32];
@@ -150,7 +150,7 @@ impl<'a> BytecodeFunction<'a> {
             }
             Operator::TypedSelect{ .. } => {
                 // NOTE: don't emit any types
-                unimplemented!("Not supported yet");
+                // unimplemented!("Not supported yet");
 
                 // [Any, Any, U32] -> [Any]
                 let i = vec![WasmType::Any, WasmType::Any, WasmType::I32];
