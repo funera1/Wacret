@@ -24,49 +24,15 @@ impl std::fmt::Display for Label {
     }
 }
 
-#[derive(Serialize)]
-pub struct V1FormatData {
-    #[serde(rename = "EntryFuncIdx")]
-    pub entry_func_idx: u32,
-    #[serde(rename = "ReturnAddress")]
-    pub return_address: (u32, u32),
-    #[serde(rename = "StackSize")]
-    pub stack_size: u32,
-    #[serde(rename = "TypeStack")]
-    pub type_stack: Vec<u8>,
-    #[serde(rename = "ValueStack")]
-    pub value_stack: Vec<i64>,
-    #[serde(rename = "LabelStackSize")]
-    pub label_stack_size: u32,
-    #[serde(rename = "LabelStack")]
-    pub label_stack: Vec<Label>,
-}
-
-#[derive(Serialize)]
-pub struct V2Format {
-    pub entries: Vec<V2FormatEntry>,
-}
-
-#[derive(Serialize)]
-pub struct V2FormatEntry {
-    pub pc: Option<(u32, u64)>,
-    pub locals: Option<Vec<i64>>,
-    pub value_stack: Option<Vec<i64>>,
-    pub label_stack: Option<Vec<u32>>,
-}
-
 #[derive(Debug, Serialize)]
 pub struct UnifiedFormat {
     pub pc: Option<(u32, u64)>,
+    pub return_address: Option<(u32, u64)>,
     pub locals: Option<Vec<i64>>,
     pub value_stack: Option<Vec<i64>>,
     pub label_stack: Option<Vec<u32>>,
     pub type_stack: Option<Vec<u8>>,
 }
-
-
-
-
 
 /// Convert bytes to integer value, mimicking Python's to_int function
 pub fn bytes_to_int(bytes: &[u8]) -> Result<i64> {

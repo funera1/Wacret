@@ -11,10 +11,10 @@ fn parse_v1_format(path: &Utf8PathBuf) -> Result<UnifiedFormat> {
     let mut cursor = 0;
 
     // Read entry function index
-    let entry_fidx = read_u32(&mut cursor, &data)?;
+    let _entry_fidx = read_u32(&mut cursor, &data)?;
 
     // Read return address
-    let _return_fidx = read_u32(&mut cursor, &data)?;
+    let return_fidx = read_u32(&mut cursor, &data)?;
     let return_offset = read_u32(&mut cursor, &data)?;
 
     // Read type stack
@@ -64,7 +64,8 @@ fn parse_v1_format(path: &Utf8PathBuf) -> Result<UnifiedFormat> {
     }
 
     Ok(UnifiedFormat {
-        pc: Some((entry_fidx, return_offset as u64)),
+        pc: Some((_entry_fidx, 10000000000 as u64)),
+        return_address: Some((return_fidx, return_offset as u64)),
         locals: None, // V1 format does not have locals
         value_stack: Some(value_stack),
         label_stack: Some(label_stack.iter().map(|label| label.begin_addr).collect()),
@@ -111,6 +112,7 @@ pub fn view_v1_format_multiple(paths: Vec<Utf8PathBuf>, json_output: bool) -> Re
             Ok(frame) => {
                 call_stack.push(UnifiedFormat {
                     pc: frame.pc,
+                    return_address: frame.return_address,
                     type_stack: frame.type_stack,
                     value_stack: frame.value_stack,
                     label_stack: frame.label_stack,

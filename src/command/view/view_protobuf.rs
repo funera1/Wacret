@@ -16,6 +16,7 @@ pub fn parse_protobuf(path: &Utf8PathBuf) -> Result<Vec<UnifiedFormat>> {
         return Ok(call_stack.entries.iter().map(|entry| {
             UnifiedFormat {
                 pc: entry.pc.as_ref().map(|pc| (pc.fidx, pc.offset)),
+                return_address: None, // Protobuf v2 does not have return_address
                 locals: None,
                 value_stack: Some(
                     entry.locals.as_ref().and_then(|locals| locals.values.as_ref().map(|array| array.contents.iter().map(|&v| v as i64).collect()))
