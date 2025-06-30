@@ -78,21 +78,27 @@ impl<'a> BytecodeFunction<'a> {
         return &self.locals[local_idx as usize];
     }
     
-    pub fn create_stack_table(&self) -> Result<Vec<CodePos>> {
+    pub fn create_stack_table(&self, before_execution: bool) -> Result<Vec<CodePos>> {
         // 命令を取得
         let mut reader = self.body.get_operators_reader()?;
         let base_offset = reader.original_position() as u32;
-        
+
         let mut stack = Stack::new();
         let mut stack_table = vec![];
         while !reader.eof() {
             let op = reader.read()?;
             let opinfo = self.opinfo(&op);
-            
-            // stackをcopy
-            let offset = reader.original_position() as u32 - base_offset;
-            stack_apply(&mut stack, &op, &opinfo);
-            stack_table.push(CodePos::new(op.clone(), offset, stack.clone()));
+
+            // Apply stack changes based on the `before_execution` flag
+            if before_execution {
+                let offset = reader.original_position() as u32 - base_offset;
+                stack_apply(&mut stack, &op, &opinfo);
+                stack_table.push(CodePos::new(op.clone(), offset, stack.clone()));
+            } else {
+                stack_apply(&mut stack, &op, &opinfo);
+                let offset = reader.original_position() as u32 - base_offset;
+                stack_table.push(CodePos::new(op.clone(), offset, stack.clone()));
+            }
         }
 
         Ok(stack_table)

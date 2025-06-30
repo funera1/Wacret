@@ -51,6 +51,10 @@ struct CreateArgs {
     /// Use v2 format
     #[arg(long)]
     v2: bool,
+
+    /// Set offset before execution
+    #[arg(long)]
+    before_execution: bool,
 }
 
 
@@ -62,7 +66,7 @@ fn main() {
         SubCommands::Create(args) => {
             let path = args.path;
             if args.v2 {
-                let result = create_table_v2::create_table_v2(path);
+                let result = create_table_v2::create_table_v2(path, args.before_execution);
                 match result {
                     Ok(_) => log::info!("Success to create the type stack tables"),
                     Err(err) => log::error!("Failed to create the type stack table, {}", err)

@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::Write;
 use anyhow::Result;
 
-pub fn create_table_v2(path: Utf8PathBuf) -> Result<()> {
+pub fn create_table_v2(path: Utf8PathBuf, before_execution: bool) -> Result<()> {
     let buf: Vec<u8> = std::fs::read(&path).unwrap();
 
     // コードから各セクションの情報を抽出
@@ -16,13 +16,13 @@ pub fn create_table_v2(path: Utf8PathBuf) -> Result<()> {
 
     // 関数クラスを初期化
     let funcs = m.new_function_v2()?;
-    
+
     // 型スタック・命令スタックテーブルを生成
-    let stack_tables = StackTables::from_func(funcs)?;
-    
+    let stack_tables = StackTables::from_func(funcs, before_execution)?;
+
     // stack_tableをserialize
     let buf = stack_tables.serialize();
-    
+
     // bufをファイルに書き込む
     let mut f: File = File::create("stack-table.msgpack")?;
     f.write(buf.as_slice())?;

@@ -43,13 +43,13 @@ pub struct StackTables(pub Vec<StackTable>);
 
 impl StackTables {
     /// 関数リストから StackTables を構築する
-    pub fn from_func(funcs: Vec<Function<'_>>) -> Result<Self> {
+    pub fn from_func(funcs: Vec<Function<'_>>, before_execution: bool) -> Result<Self> {
         let stack_tables_iter = funcs
             .iter()
             .map(|f| match f {
                 Function::ImportFunction(_) => (f, Vec::new()),
                 Function::BytecodeFunction(bf) => {
-                    let table = bf.create_stack_table().expect("Failed to create stack table from BytecodeFunction");
+                    let table = bf.create_stack_table(before_execution).expect("Failed to create stack table from BytecodeFunction");
                     (f, table)
                 }
             });
