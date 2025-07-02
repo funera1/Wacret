@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 use std::fs;
-use walrus::{Module, ir::{Instr, InstrLocId, Drop}};
+use walrus::{Module, ir::{Instr, InstrLocId}};
 
 /// Insert a NOP instruction at a specific offset within a specific function
 pub fn insert_nop(
@@ -43,7 +43,12 @@ fn inject_nop(wasm_bytes: &[u8], func_index: u32, instr_offset: u32) -> Result<V
 
     // Get the mutable function body
     let func = module.funcs.get_mut(func_id);
-    let body = func.kind.unwrap_local_mut();
+
+    // Ensure the function is local
+    let body = match &mut func.kind {
+        walrus::FunctionKind::Local(local) => local,
+        _ => return Err(anyhow!("Function with index {} is not a local function", func_index)),
+    };
 
     // Get the entry block ID
     let entry_block_id = body.entry_block();
@@ -52,9 +57,12 @@ fn inject_nop(wasm_bytes: &[u8], func_index: u32, instr_offset: u32) -> Result<V
     let instr_seq = body.block_mut(entry_block_id);
 
     // Insert a NOP-equivalent instruction (e.g., Drop) at the specified offset
-    let nop_instr = Instr::Drop(Drop {});
+    let nop_instr = Instr::Nop(walrus::ir::Nop {});
     let nop_loc_id = InstrLocId::new(instr_seq.instrs.len() as u32);
     instr_seq.instrs.insert(instr_offset as usize, (nop_instr, nop_loc_id));
+
+    // Log the instruction sequence after insertion
+    log::debug!("Instruction sequence after insertion: {:?}", instr_seq.instrs);
 
     // Serialize the modified module back to bytes
     let modified_bytes = module.emit_wasm();
