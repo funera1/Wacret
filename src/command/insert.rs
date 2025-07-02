@@ -38,6 +38,8 @@ fn inject_nop(wasm_bytes: &[u8], func_index: u32, instr_offset: u32) -> Result<V
     let mut module = Module::new();
     let mut code_section = CodeSection::new();
     let mut current_func_index = 0u32;
+    let mut found_target_function = false;
+    let mut nop_inserted = false;
 
     for payload in parser.parse_all(wasm_bytes) {
         match payload? {
@@ -45,16 +47,18 @@ fn inject_nop(wasm_bytes: &[u8], func_index: u32, instr_offset: u32) -> Result<V
                 let mut func = Function::new(vec![]);
                 
                 if current_func_index == func_index {
+                    found_target_function = true;
                     log::info!("Processing target function {} for NOP insertion", func_index);
                     
                     let mut operators = function_body.get_operators_reader()?;
-                    let mut current_offset = 0u32;
-                    let mut nop_inserted = false;
+                    let base_offset = operators.original_position() as u32;
 
                     while !operators.eof() {
+                        let offset = operators.original_position() as u32 - base_offset;
+                        
                         // Insert NOP at the target offset
-                        if !nop_inserted && current_offset == instr_offset {
-                            log::info!("Inserting NOP at offset {}", current_offset);
+                        if !nop_inserted && offset == instr_offset {
+                            log::info!("Inserting NOP at offset {}", offset);
                             func.instruction(&Instruction::Nop);
                             nop_inserted = true;
                         }
@@ -62,17 +66,26 @@ fn inject_nop(wasm_bytes: &[u8], func_index: u32, instr_offset: u32) -> Result<V
                         let _op = operators.read()?;
                         // TODO: Convert and add the original instruction
                         // For now, just skip the original instructions
-                        current_offset += 1;
+                    }
+
+                    let final_offset = operators.original_position() as u32 - base_offset;
+                    
+                    // Check if the offset is valid (within the function)
+                    if !nop_inserted {
+                        return Err(anyhow!(
+                            "Offset {} is out of bounds for function {}. Function length: {} bytes.",
+                            instr_offset,
+                            func_index,
+                            final_offset
+                        ));
                     }
 
                     // If we haven't inserted the NOP yet and the target offset is at the end
-                    if !nop_inserted && current_offset <= instr_offset {
-                        log::info!("Inserting NOP at end of function at offset {}", current_offset);
+                    if !nop_inserted && instr_offset == final_offset {
+                        log::info!("Inserting NOP at end of function at offset {}", final_offset);
                         func.instruction(&Instruction::Nop);
+                        nop_inserted = true;
                     }
-                } else {
-                    // For non-target functions, just add a NOP as placeholder
-                    func.instruction(&Instruction::Nop);
                 }
 
                 code_section.function(&func);
@@ -83,6 +96,15 @@ fn inject_nop(wasm_bytes: &[u8], func_index: u32, instr_offset: u32) -> Result<V
                 // For now, skip all other sections
             }
         }
+    }
+
+    // Check if the target function was found
+    if !found_target_function {
+        return Err(anyhow!(
+            "Function with index {} not found. Total functions: {}",
+            func_index,
+            current_func_index
+        ));
     }
 
     module.section(&code_section);
@@ -102,5 +124,17 @@ mod tests {
             0,
         );
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_inject_nop_invalid_function_index() {
+        // Test with empty WASM bytes that would have no functions
+        let empty_wasm = vec![0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]; // WASM magic + version
+        let result = inject_nop(&empty_wasm, 999, 0);
+        assert!(result.is_err());
+        
+        if let Err(e) = result {
+            assert!(e.to_string().contains("Function with index 999 not found"));
+        }
     }
 }
