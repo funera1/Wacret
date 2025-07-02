@@ -3,7 +3,7 @@ mod core;
 mod command;
 mod compile;
 
-use command::{create_table, create_table_v2, view, insert_nop};
+use command::{create_table, create_table_v2, view, insert};
 
 use env_logger;
 // use log::{debug, error, log_enabled, info, Level};
@@ -42,16 +42,16 @@ enum SubCommands {
         json: bool,
     },
     /// Insert a NOP instruction at a specific offset within a specific function
-    InsertNop {
+    Insert {
         /// Path to input WASM file
+        #[arg(short, long)]
         input: Utf8PathBuf,
         /// Path to output WASM file
+        #[arg(short, long)]
         output: Utf8PathBuf,
         /// Function index (0-based)
-        #[arg(short, long)]
         function_index: u32,
         /// Offset within the function where to insert NOP
-        #[arg(short, long)]
         offset: u32,
     }
 }
@@ -117,8 +117,8 @@ fn main() {
                 Err(err) => log::error!("Failed to view file(s): {}", err)
             }
         },
-        SubCommands::InsertNop { input, output, function_index, offset } => {
-            let result = insert_nop::insert_nop(input, output, function_index, offset);
+        SubCommands::Insert { input, output, function_index, offset } => {
+            let result = insert::insert_nop(input, output, function_index, offset);
             match result {
                 Ok(_) => log::info!("Successfully inserted NOP instruction"),
                 Err(err) => log::error!("Failed to insert NOP instruction: {}", err)

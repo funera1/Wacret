@@ -324,6 +324,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "leb128"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "884e2677b40cc8c339eaefcb701c32ef1fd2493d71118dc0ca4b6a736c93bd67"
+
+[[package]]
 name = "libc"
 version = "0.2.174"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -681,6 +687,7 @@ dependencies = [
  "serde_json",
  "strum",
  "strum_macros",
+ "wasm-encoder",
  "wasmparser",
 ]
 
@@ -691,6 +698,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9683f9a5a998d873c0d21fcbe3c083009670149a8fab228644b8bd36b2c48cb3"
 dependencies = [
  "wit-bindgen-rt",
+]
+
+[[package]]
+name = "wasm-encoder"
+version = "0.221.2"
+source = "git+https://github.com/funera1/wasm-tools?branch=feature%2Fdisplay-operator#83cbd358358c903092f2cf31b14cc303c791be23"
+dependencies = [
+ "leb128",
+ "wasmparser",
 ]
 
 [[package]]

@@ -20,6 +20,7 @@ prost = "0.12"
 strum = "0.26.3"
 strum_macros = "0.26.4"
 wasmparser = { git = "https://github.com/funera1/wasm-tools", branch = "feature/display-operator" }
+wasm-encoder = { git = "https://github.com/funera1/wasm-tools", branch = "feature/display-operator" }
 
 [build-dependencies]
 prost-build = "0.12"
