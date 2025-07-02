@@ -33,8 +33,12 @@ pub fn insert_nop(
 
 /// Inject a NOP instruction at the specified offset within the specified function
 fn inject_nop(wasm_bytes: &[u8], func_index: u32, instr_offset: u32) -> Result<Vec<u8>> {
+    // Configure Walrus to generate the name section
+    let mut config = walrus::ModuleConfig::new();
+    config.generate_name_section(true);
+
     // Parse the WASM module using Walrus
-    let mut module = Module::from_buffer(wasm_bytes)
+    let mut module = Module::from_buffer_with_config(wasm_bytes, &config)
         .map_err(|e| anyhow!("Failed to parse WASM module: {}", e))?;
 
     // Get the function ID from the index
@@ -68,6 +72,89 @@ fn inject_nop(wasm_bytes: &[u8], func_index: u32, instr_offset: u32) -> Result<V
     let modified_bytes = module.emit_wasm();
 
     Ok(modified_bytes)
+}
+
+/// Inject a NOP instruction at the specified offset within the specified function,
+/// and then restore the original function order after rewriting.
+fn inject_nop_preserve_order(wasm_bytes: &[u8], func_index: u32, instr_offset: u32) -> Result<Vec<u8>> {
+    use walrus::{FunctionId, Module, ModuleConfig, ir::*};
+    use wasmparser::{Parser, Payload};
+    use wasm_encoder::*;
+
+    // === Step 1: Record original function order ===
+    let mut original_func_order = Vec::new();
+    let mut imported_funcs = 0u32;
+
+    for payload in Parser::new(0).parse_all(wasm_bytes) {
+        match payload? {
+            Payload::ImportSection(s) => {
+                for import in s {
+                    let import = import?;
+                    if let wasmparser::TypeRef::Func(_) = import.ty {
+                        imported_funcs += 1;
+                    }
+                }
+            }
+            Payload::FunctionSection(s) => {
+                for (i, _) in s.into_iter().enumerate() {
+                    // Store original local function index (not including imports)
+                    original_func_order.push(imported_funcs + i as u32);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // === Step 2: Modify the code using Walrus ===
+    let mut config = ModuleConfig::new();
+    config.generate_name_section(true);
+    let mut module = Module::from_buffer_with_config(wasm_bytes, &config)?;
+
+    let func_id = module.funcs.iter().nth(func_index as usize)
+        .ok_or_else(|| anyhow!("Function with index {} not found", func_index))?.id();
+
+    let func = module.funcs.get_mut(func_id);
+    let body = match &mut func.kind {
+        walrus::FunctionKind::Local(local) => local,
+        _ => return Err(anyhow!("Function at index {} is not a local function", func_index)),
+    };
+
+    let entry = body.entry_block();
+    let instrs = body.block_mut(entry);
+    let nop = Instr::Nop(Nop {});
+    let loc_id = InstrLocId::new(instrs.instrs.len() as u32);
+    instrs.instrs.insert(instr_offset as usize, (nop, loc_id));
+
+    let new_bytes = module.emit_wasm();
+
+    // === Step 3: Restore original function order ===
+    let walrus_module = walrus::ModuleConfig::new().parse(&new_bytes)?;
+    let mut output = ModuleEncoder::new();
+
+    // Reuse sections from walrus output, but reorder the function + code section manually
+    let mut encoder = output.section(FunctionSection::new());
+    let mut code_sec = CodeSection::new();
+
+    let code_bodies: Vec<_> = walrus_module.funcs.iter_local().collect();
+
+    for &old_idx in &original_func_order {
+        let func = walrus_module.funcs.iter().nth(old_idx as usize).ok_or(anyhow!("Missing function index {} after rewriting", old_idx))?;
+        if let walrus::FunctionKind::Local(local) = &func.kind {
+            let ty = func.ty();
+            encoder.function(ty);
+            let mut func_writer = Function::new(vec![]);
+            for instr in &local.entry_block().instrs {
+                func_writer.instruction(instr.0.clone());
+            }
+            func_writer.instruction(&Instruction::End);
+            code_sec.function(&func_writer);
+        }
+    }
+
+    output.section(&encoder);
+    output.section(&code_sec);
+
+    Ok(output.finish())
 }
 
 #[cfg(test)]
