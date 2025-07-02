@@ -78,7 +78,7 @@ impl<'a> BytecodeFunction<'a> {
         return &self.locals[local_idx as usize];
     }
     
-    pub fn create_stack_table(&self, before_execution: bool) -> Result<Vec<CodePos>> {
+    pub fn create_stack_table(&self, _before_execution: bool) -> Result<Vec<CodePos>> {
         // 命令を取得
         let mut reader = self.body.get_operators_reader()?;
         let base_offset = reader.original_position() as u32;
@@ -86,19 +86,25 @@ impl<'a> BytecodeFunction<'a> {
         let mut stack = Stack::new();
         let mut stack_table = vec![];
         while !reader.eof() {
+            let offset_before = reader.original_position() as u32 - base_offset;
             let op = reader.read()?;
             let opinfo = self.opinfo(&op);
+            let offset_after = reader.original_position() as u32 - base_offset;
 
-            // Apply stack changes based on the `before_execution` flag
-            if before_execution {
-                let offset = reader.original_position() as u32 - base_offset;
-                stack_apply(&mut stack, &op, &opinfo);
-                stack_table.push(CodePos::new(op.clone(), offset, stack.clone()));
-            } else {
-                stack_apply(&mut stack, &op, &opinfo);
-                let offset = reader.original_position() as u32 - base_offset;
-                stack_table.push(CodePos::new(op.clone(), offset, stack.clone()));
+            // 入力適用
+            stack_apply_input(&mut stack, &opinfo);
+
+            // Call命令のときだけ、関数呼び出し直後の状態も特別に記録
+            if matches!(op, Operator::Call { .. } | Operator::CallIndirect { .. }) {
+                let call_site_offset = offset_before + 1;
+                stack_table.push(CodePos::new(op.clone(), call_site_offset, stack.clone()));
             }
+
+            // 出力適用
+            stack_apply_output(&mut stack, &op, &opinfo);
+
+            // 通常の命令記録（実行後の状態）
+            stack_table.push(CodePos::new(op.clone(), offset_after, stack.clone()));
         }
 
         Ok(stack_table)
@@ -133,6 +139,25 @@ fn stack_apply<'a>(stack: &mut Stack<'a>, opcode: &Operator<'a>, opinfo: &OpInfo
     let stack_len = stack.len();
     stack.inner.truncate(stack_len.saturating_sub(pop_len));
     
+    // push
+    for typ in output.iter() {
+        // TODO: cloneを避ける
+        stack.push((opcode.clone(), typ.clone()));
+    }
+}
+
+fn stack_apply_input<'a>(stack: &mut Stack<'a>, opinfo: &OpInfo) {
+    let input = &opinfo.input;
+
+    // pop
+    let pop_len = input.len();
+    let stack_len = stack.len();
+    stack.inner.truncate(stack_len.saturating_sub(pop_len));
+}
+
+fn stack_apply_output<'a>(stack: &mut Stack<'a>, opcode: &Operator<'a>, opinfo: &OpInfo) {
+    let output = &opinfo.output;
+
     // push
     for typ in output.iter() {
         // TODO: cloneを避ける
