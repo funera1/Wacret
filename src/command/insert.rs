@@ -1,8 +1,7 @@
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
 use std::fs;
-use wasmparser::{Parser, Payload};
-use wasm_encoder::{Module, CodeSection, Function, Instruction};
+use walrus::{Module, ir::{Instr, InstrLocId, Drop}};
 
 /// Insert a NOP instruction at a specific offset within a specific function
 pub fn insert_nop(
@@ -34,81 +33,33 @@ pub fn insert_nop(
 
 /// Inject a NOP instruction at the specified offset within the specified function
 fn inject_nop(wasm_bytes: &[u8], func_index: u32, instr_offset: u32) -> Result<Vec<u8>> {
-    let parser = Parser::new(0);
-    let mut module = Module::new();
-    let mut code_section = CodeSection::new();
-    let mut current_func_index = 0u32;
-    let mut found_target_function = false;
-    let mut nop_inserted = false;
+    // Parse the WASM module using Walrus
+    let mut module = Module::from_buffer(wasm_bytes)
+        .map_err(|e| anyhow!("Failed to parse WASM module: {}", e))?;
 
-    for payload in parser.parse_all(wasm_bytes) {
-        match payload? {
-            Payload::CodeSectionEntry(function_body) => {
-                let mut func = Function::new(vec![]);
-                
-                if current_func_index == func_index {
-                    found_target_function = true;
-                    log::info!("Processing target function {} for NOP insertion", func_index);
-                    
-                    let mut operators = function_body.get_operators_reader()?;
-                    let base_offset = operators.original_position() as u32;
+    // Get the function ID from the index
+    let func_id = module.funcs.iter().nth(func_index as usize)
+        .ok_or_else(|| anyhow!("Function with index {} not found", func_index))?.id();
 
-                    while !operators.eof() {
-                        let offset = operators.original_position() as u32 - base_offset;
-                        
-                        // Insert NOP at the target offset
-                        if !nop_inserted && offset == instr_offset {
-                            log::info!("Inserting NOP at offset {}", offset);
-                            func.instruction(&Instruction::Nop);
-                            nop_inserted = true;
-                        }
+    // Get the mutable function body
+    let func = module.funcs.get_mut(func_id);
+    let body = func.kind.unwrap_local_mut();
 
-                        let _op = operators.read()?;
-                        // TODO: Convert and add the original instruction
-                        // For now, just skip the original instructions
-                    }
+    // Get the entry block ID
+    let entry_block_id = body.entry_block();
 
-                    let final_offset = operators.original_position() as u32 - base_offset;
-                    
-                    // Check if the offset is valid (within the function)
-                    if !nop_inserted {
-                        return Err(anyhow!(
-                            "Offset {} is out of bounds for function {}. Function length: {} bytes.",
-                            instr_offset,
-                            func_index,
-                            final_offset
-                        ));
-                    }
+    // Get a mutable reference to the instruction sequence
+    let instr_seq = body.block_mut(entry_block_id);
 
-                    // If we haven't inserted the NOP yet and the target offset is at the end
-                    if !nop_inserted && instr_offset == final_offset {
-                        log::info!("Inserting NOP at end of function at offset {}", final_offset);
-                        func.instruction(&Instruction::Nop);
-                        nop_inserted = true;
-                    }
-                }
+    // Insert a NOP-equivalent instruction (e.g., Drop) at the specified offset
+    let nop_instr = Instr::Drop(Drop {});
+    let nop_loc_id = InstrLocId::new(instr_seq.instrs.len() as u32);
+    instr_seq.instrs.insert(instr_offset as usize, (nop_instr, nop_loc_id));
 
-                code_section.function(&func);
-                current_func_index += 1;
-            }
-            _ => {
-                // TODO: Copy other sections to the module
-                // For now, skip all other sections
-            }
-        }
-    }
+    // Serialize the modified module back to bytes
+    let modified_bytes = module.emit_wasm();
 
-    // Check if the target function was found
-    if !found_target_function {
-        return Err(anyhow!(
-            "Function with index {} not found. Total functions: {}",
-            func_index,
-            current_func_index
-        ));
-    }
-
-    module.section(&code_section);
-    Ok(module.finish())
+    Ok(modified_bytes)
 }
 
 #[cfg(test)]
