@@ -25,3 +25,6 @@ walrus = { git = "https://github.com/funera1/walrus" }
 
 [build-dependencies]
 prost-build = "0.12"
+
+[dev-dependencies]
+tempfile = "3.8"
