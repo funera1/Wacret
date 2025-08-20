@@ -89,14 +89,15 @@ impl<'a> BytecodeFunction<'a> {
             let offset_before = reader.original_position() as u32 - base_offset;
             let op = reader.read()?;
             let opinfo = self.opinfo(&op);
-            let offset_after = reader.original_position() as u32 - base_offset;
+            // let offset_after = reader.original_position() as u32 - base_offset;
 
             // 入力適用
             stack_apply_input(&mut stack, &opinfo);
 
             // Call命令のときだけ、関数呼び出し直後の状態も特別に記録
-            if matches!(op, Operator::Call { .. } | Operator::CallIndirect { .. }) {
+            if matches!(op, Operator::Call { .. }) {
                 let call_site_offset = offset_before + 1;
+                // let call_site_offset = offset_after - 1;
                 stack_table.push(CodePos::new(op.clone(), call_site_offset, stack.clone()));
             }
 
@@ -104,7 +105,7 @@ impl<'a> BytecodeFunction<'a> {
             stack_apply_output(&mut stack, &op, &opinfo);
 
             // 通常の命令記録（実行後の状態）
-            stack_table.push(CodePos::new(op.clone(), offset_after, stack.clone()));
+            stack_table.push(CodePos::new(op.clone(), offset_before, stack.clone()));
         }
 
         Ok(stack_table)
