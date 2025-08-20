@@ -40,6 +40,9 @@ enum SubCommands {
         /// Output in JSON format
         #[arg(short, long)]
         json: bool,
+        /// Merge locals and value stack into a single value_stack (for protobuf only)
+        #[arg(long)]
+        merged_stack: bool,
     },
     /// Insert a NOP instruction at a specific offset within a specific function
     Insert {
@@ -95,13 +98,13 @@ fn main() {
         SubCommands::Display { .. } => {
             todo!();
         },
-        SubCommands::View { path, v1, json } => {
+        SubCommands::View { path, v1, json, merged_stack } => {
             let result = if path.len() == 1 {
                 let single_path = path[0].clone();
                 if v1 {
                     view::view_v1_format(single_path, json)
                 } else {
-                    view::view_protobuf(single_path)
+                    view::view_protobuf(single_path, merged_stack)
                 }
             } else {
                 if v1 {
