@@ -95,7 +95,7 @@ impl<'a> BytecodeFunction<'a> {
             stack_apply_input(&mut stack, &opinfo);
 
             // Call命令のときだけ、関数呼び出し直後の状態も特別に記録
-            if matches!(op, Operator::Call { .. }) {
+            if matches!(op, Operator::Call { .. } | Operator::CallIndirect { .. }) {
                 let call_site_offset = offset_before + 1;
                 // let call_site_offset = offset_after - 1;
                 stack_table.push(CodePos::new(op.clone(), call_site_offset, stack.clone()));
